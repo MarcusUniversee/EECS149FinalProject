@@ -1,1 +1,9 @@
 venv
+
+robot/test/node_modules/
+robot/bin/
+robot/target/
+robot/src-gen/
+robot/include/
+robot/build/
+.vscode/

@@ -1,0 +1,35 @@
+"""my_controller controller."""
+
+# You may need to import some classes of the controller module. Ex:
+#  from controller import Robot, Motor, DistanceSensor
+from controller import Robot
+
+if __name__ == "__main__":
+    # create the Robot instance
+    robot = Robot()
+
+    # get the time step of the current world
+    timestep = 64          # or int(robot.getBasicTimeStep())
+    max_speed = 6.28       # max motor speed (rad/s), adjust if needed
+
+    # create motor instances
+    left_motor = robot.getDevice("LeftMotor")
+    right_motor = robot.getDevice("RightMotor")
+
+    # set the target position to infinity (velocity control mode)
+    left_motor.setPosition(float('inf'))
+    right_motor.setPosition(float('inf'))
+
+    # start with zero velocity
+    left_motor.setVelocity(0.0)
+    right_motor.setVelocity(0.0)
+
+    # Main loop:
+    # - perform simulation steps until Webots stops the controller
+    while robot.step(timestep) != -1:
+        left_speed = 0.5 * max_speed
+        right_speed = 0.5 * max_speed
+
+        left_motor.setVelocity(left_speed)
+        right_motor.setVelocity(right_speed)
+

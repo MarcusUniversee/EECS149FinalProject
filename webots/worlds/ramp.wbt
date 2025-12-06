@@ -1,0 +1,177 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+
+WorldInfo {
+  contactProperties [
+    ContactProperties {
+      material1 "wheel"
+      material2 "ramp_incline"
+      coulombFriction [0.5 0.35]   # incline has decent grip
+    }
+    ContactProperties {
+      material1 "wheel"
+      material2 "ramp_top"
+      coulombFriction [0.5 0.35]   # very grippy top
+    }
+  ]
+}
+Viewpoint {
+  orientation 0.06768639259597908 0.0691612499516444 -0.995306622987343 1.553904203371828
+  position 0.4433950480333872 3.05183925921955 0.4794361529862956
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  floorSize 2 2
+}
+# Segment 1: constant slope, part 1 of 0.61 m
+Solid {
+  name "RAMP_SEG_1"
+  translation 0.096 0 0.035    # center position
+  rotation 0 -1 0 0.34906585    # 20 degrees around Y
+  contactMaterial "ramp_incline"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.203 0.305 0.02   # length (X), width (Y), thickness (Z)
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.203 0.305 0.02
+  }
+}
+
+# Segment 2: constant slope, part 2
+Solid {
+  name "RAMP_SEG_2"
+  translation 0.287 0 0.104
+  rotation 0 -1 0 0.34906585
+  contactMaterial "ramp_incline"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.203 0.305 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.203 0.305 0.02
+  }
+}
+
+# Segment 3: constant slope, part 3
+Solid {
+  name "RAMP_SEG_3"
+  translation 0.478 0 0.174
+  rotation 0 -1 0 0.34906585
+  contactMaterial "ramp_incline"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.203 0.305 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.203 0.305 0.02
+  }
+}
+
+# Segment 4: curve region, slope decreasing (12°)
+Solid {
+  name "RAMP_SEG_4"
+  translation 0.593 0 0.213
+  rotation 0 -1 0 0.20943951    # 12 degrees
+  contactMaterial "ramp_incline"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.04 0.305 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.04 0.305 0.02
+  }
+}
+
+# Segment 5: curve region, closer to flat (6°)
+Solid {
+  name "RAMP_SEG_5"
+  translation 0.632 0 0.219
+  rotation 0 -1 0 0.10471976    # 6 degrees
+  contactMaterial "ramp_incline"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.04 0.305 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.04 0.305 0.02
+  }
+}
+
+# Segment 6: flat top, first half (0.115 m)
+Solid {
+  name "RAMP_SEG_6"
+  translation 0.71 0 0.221
+  rotation 0 -1 0 0.0           # flat
+  contactMaterial "ramp_top"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.115 0.305 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.115 0.305 0.02
+  }
+}
+
+# Segment 7: flat top, second half (0.115 m)
+Solid {
+  name "RAMP_SEG_7"
+  translation 0.825 0 0.221
+  rotation 0 -1 0 0.0
+  contactMaterial "ramp_top"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        metalness 0
+      }
+      geometry Box {
+        size 0.115 0.305 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.115 0.305 0.02
+  }
+}

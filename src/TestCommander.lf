@@ -1,0 +1,51 @@
+/**
+ * Display messages when the commands are received over Bluetooth
+ * <a href="https://www.pololu.com/docs/0J86">Pololu 3pi+ 2040 robot</a> are triggered.
+ * @author Marcus Koh
+ */
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+import Display from "lib/Display.lf"
+import Commander from "lib/Commander.lf"
+import Motors from "lib/Motors.lf"
+
+main reactor {
+  preamble {=
+    #include <stdio.h>
+  =}
+  cmd = new Commander()
+  disp = new Display()
+  motors = new Motors()
+  logical action clear
+
+  state last_left: int = 0
+  state last_right: int = 0
+
+  reaction(cmd.command) -> disp.line0, clear, motors.left_power, motors.right_power {=
+    static char buf[64];
+    snprintf(buf, 64, "%s", cmd.command->value);
+    buf[16] = '\0'; //Truncate to 16 characters
+    lf_set(disp.line0, buf);
+    float l, r;
+    int n = sscanf(cmd.command->value, "%f %f", &l, &r);
+    if (n == 2) {
+        //clamp for safety
+        if (l > 1.0f)  l = 1.0f;
+        if (l < -1.0f) l = -1.0f;
+        if (r > 1.0f)  r = 1.0f;
+        if (r < -1.0f) r = -1.0f;
+        // Successfully parsed two ints
+        self->last_left = l;
+        self->last_right = r;
+
+        lf_set(motors.left_power, l);
+        lf_set(motors.right_power, r);
+    }
+  =}
+}

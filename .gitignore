@@ -1,9 +1,9 @@
 venv
 
-robot/test/node_modules/
-robot/bin/
-robot/target/
-robot/src-gen/
-robot/include/
-robot/build/
+test/node_modules/
+bin/
+target/
+src-gen/
+include/
+build/
 .vscode/

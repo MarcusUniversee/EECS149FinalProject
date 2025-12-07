@@ -1,0 +1,106 @@
+/**
+ * @brief Library reactor recieiving commands from a bluetooth receiver over UART
+ * <a href="https://www.pololu.com/docs/0J86">Pololu 3pi+ 2040 robot</a>.
+ * This reactor initializes UART0 according to defined GPIO pins, then
+ * listens for incoming commands over Bluetooth and saves them into a buffer
+ *
+
+ * @author Marcus Koh
+ */
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+preamble {=
+  #include "pico/stdlib.h"
+  #include "hardware/uart.h"
+  #include <string.h>
+
+  // UART configuration for HM-10 on the 3pi+ 2040.
+  #define HM10_UART   uart0
+  #define HM10_BAUD   9600
+  #define HM10_TX_PIN 29   // GPIO2 -> HM-10 RX
+  #define HM10_RX_PIN 28   // GPIO3 -> HM-10 TX
+
+  // Simple line buffer and stored commands.
+  static char rx_buffer[64];
+  static int  rx_len = 0;
+  static char debug_buf[17] = "NO UART DATA";
+
+  static char last_cmd[64]   = "";  // Most recent command
+  static char prev_cmd[64]   = "";  // Command before that
+
+  static void init_hm10_uart(void) {
+    //RX is 28: GPIO17
+    //TX is 29: GPIO18
+      uart_init(HM10_UART, HM10_BAUD);
+      gpio_set_function(HM10_TX_PIN, GPIO_FUNC_UART);
+      gpio_set_function(HM10_RX_PIN, GPIO_FUNC_UART);
+      uart_set_format(HM10_UART, 8, 1, UART_PARITY_NONE);
+      uart_set_hw_flow(HM10_UART, false, false);
+      uart_set_fifo_enabled(HM10_UART, true);
+  }
+
+  /**
+   * @brief Poll UART and update buffers when a full line is received.
+   *
+   * Returns 1 if a new complete command line was parsed since the last call,
+   * and 0 otherwise.
+   */
+  static int poll_uart_for_command(void) {
+      int new_command_available = 0;
+      while (uart_is_readable(HM10_UART)) {
+          char c = uart_getc(HM10_UART);
+
+          if (c == '\r') {
+              // Ignore carriage return.
+              continue;
+          }
+
+          if (c == '\n') {
+              // End of command line.
+              rx_buffer[rx_len] = '\0';
+
+              // Shift last -> prev, rx_buffer -> last.
+              strcpy(prev_cmd, last_cmd);
+              strcpy(last_cmd, rx_buffer);
+
+              rx_len = 0;
+              new_command_available = 1;
+          } else {
+              // Accumulate into buffer if space permits.
+              if (rx_len < (int)sizeof(rx_buffer) - 1) {
+                  rx_buffer[rx_len++] = c;
+              } else {
+                  // Overflow: reset buffer to avoid partial garbage.
+                  rx_len = 0;
+              }
+          }
+      }
+      return new_command_available;
+  }
+=}
+
+reactor Commander(sample_period: time = 100 ms) {
+  timer poll(0, sample_period)
+  output command: string
+  output previous: string
+
+  reaction(startup) -> command {=
+    init_hm10_uart();
+    strcpy(last_cmd, "test_cmd");
+    lf_set(command, last_cmd);
+  =}
+  reaction(poll) -> command, previous {=
+    if (poll_uart_for_command()) {
+        // New command available in last_cmd/prev_cmd.
+        // Emit outputs pointing to these buffers.
+        lf_set(command, last_cmd);
+        lf_set(previous, prev_cmd);
+    }
+  =}
+}

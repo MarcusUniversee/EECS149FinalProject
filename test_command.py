@@ -7,7 +7,8 @@ CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 async def main():
     async with BleakClient(ADDRESS) as client:
         print("Connected:", client.is_connected)
-        await client.write_gatt_char(CHAR_UUID, bytearray(b'drive forward'), response=True)
+        await client.write_gatt_char(CHAR_UUID, b'0.2 0.2\n', response=True)
+        print("wrote command")
 
 
 if __name__ == "__main__":

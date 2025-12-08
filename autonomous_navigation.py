@@ -11,6 +11,10 @@ import yaml
 from pupil_apriltags import Detector
 from bleak import BleakClient
 from pid_controller import PID
+import argparse
+
+parser = argparse.ArgumentParser(description="Waypoint navigation")
+parser.add_argument("-f", default="None", help="Filepath to waypoint yaml")
 
 # ==================== CONFIGURATION ====================
 # Camera settings
@@ -43,6 +47,7 @@ Kd = 0.0
 STATE_IDLE = 0
 STATE_DRIVING = 1
 STATE_ARRIVED = 2
+STATE_FINISHED = 3
 BOX_SIZE  = 30
 # =======================================================
 
@@ -61,6 +66,22 @@ def px_to_meters(x_px, y_px, Z, K):
     X = (x_px - cx) * (Z / fx)
     Y = (y_px - cy) * (Z / fy)
     return X, Y
+
+def meters_to_px(X, Y, Z, K):
+    """
+    Convert camera-frame point (X, Y, Z) in meters into image pixel coordinates (x_px, y_px).
+    K: 3x3 camera matrix
+    Assumes OpenCV camera coords: x right, y down, z forward.
+    Returns (x_px, y_px) as floats; cast to int if needed for indexing/drawing.
+    """
+    fx = K[0, 0]; fy = K[1, 1]; cx = K[0, 2]; cy = K[1, 2]
+
+    if Z == 0:
+        raise ValueError("Z must be nonzero to project to pixel coordinates")
+
+    x_px = fx * (X / Z) + cx
+    y_px = fy * (Y / Z) + cy
+    return x_px, y_px
 
 def initialize_camera(camera_id, resolution):
     """Initialize camera."""
@@ -104,7 +125,7 @@ def rotation_matrix_to_euler_angles(R):
 
 
 class MotionCaptureThread(threading.Thread):
-    def __init__(self, shared_state, nav_shared_state):
+    def __init__(self, shared_state, nav_shared_state, filename=None):
         """
         Initialize motion capture thread.
         
@@ -120,8 +141,10 @@ class MotionCaptureThread(threading.Thread):
         self.cap = None
         self.detector = None
         self.camera_matrix = None
+        self.filename = filename
         cv2.namedWindow(WINDOW)
-        cv2.setMouseCallback(WINDOW, self.mouse_callback)
+        if self.filename is None:
+            cv2.setMouseCallback(WINDOW, self.mouse_callback)
     
     def initialize(self):
         """Initialize camera and detector."""
@@ -147,6 +170,9 @@ class MotionCaptureThread(threading.Thread):
         )
         self.sp_x = IMAGE_RES[0] // 2
         self.sp_y = IMAGE_RES[1] // 2
+        self.sp_xm = 0
+        self.sp_ym = 0
+        self.current = None
         print("✓ Motion capture initialized")
         
         return True
@@ -203,10 +229,23 @@ class MotionCaptureThread(threading.Thread):
                 z = robot_detection.pose_t[2, 0]
                 
                 roll, pitch, yaw = rotation_matrix_to_euler_angles(robot_detection.pose_R)
-                sp_xm, sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.camera_matrix)
+                self.current = {
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "roll": roll,
+                    "pitch": pitch,
+                    "yaw": yaw
+                }
+                if self.filename is None:
+                    self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.camera_matrix)
+                else:
+                    x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
+                    self.sp_x = int(round(x_px))
+                    self.sp_y = int(round(y_px))
                 # Update tracker
-                rel_x = sp_xm - x
-                rel_y = sp_ym - y
+                rel_x = self.sp_xm - x
+                rel_y = self.sp_ym - y
                 target_yaw = math.degrees(math.atan2(rel_y, rel_x))
                 rel_yaw = target_yaw - yaw # positive means turn left, negative means turn right
                 rel_yaw = (rel_yaw + 180) % 360 - 180
@@ -226,12 +265,19 @@ class MotionCaptureThread(threading.Thread):
                 self.running = False
                 break
     
+    def set_waypoint(self, x, y):
+        self.sp_xm, self.sp_ym = float(x), float(y)
+        print("Waypoint (from file):", self.sp_xm, self.sp_ym)
+        with self.nav_shared_state['lock']:
+            self.nav_shared_state['state'] = STATE_DRIVING
+    
     def stop(self):
         """Stop tracking."""
         self.running = False
         if self.cap:
             self.cap.release()
         cv2.destroyWindow(WINDOW)
+    
 
 class BluetoothControlThread(threading.Thread):
     def __init__(self, shared_state, command_queue):
@@ -320,12 +366,16 @@ class NavigationController:
 
         self.dist_pid = PID(dist_kp, dist_ki, dist_kd, integral_limit=2.0)
         self.head_pid = PID(head_kp, head_ki, head_kd, integral_limit=2.0)
+        self.is_final = False
 
     def reset(self):
         self.dist_pid.reset()
         self.head_pid.reset()
     
-    def update(self, dt=0.02):
+    def set_is_final(self, is_final: bool):
+        self.is_final = is_final
+    
+    def update(self, dt=0.02, is_stop=True):
         """
         Update control loop (call at CONTROL_RATE Hz).
         """
@@ -346,33 +396,32 @@ class NavigationController:
         if not tracking or not bt_connected:
             self.stop_motors()
             return
-        if self.state == STATE_ARRIVED and abs(rel_yaw) >= HEADING_THRESHOLD:
-            self.state = STATE_DRIVING
-
-        #TODO: FUTURE/NEXT STEPS. Implement multi waypoint navigation here
-
-
-
-        #
 
         # navigation to final waypoint
-        self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_final=True)
+        self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_stop=is_stop)
 
-    def waypoint_navigate(self, dx, dy, d_dir_deg, dt, is_final=False):
+    def waypoint_navigate(self, dx, dy, d_dir_deg, dt, is_stop=False):
         """
         Docstring for waypoint_navigate
         
         :param dx: x displacement to target in meters
         :param dy: y displacement to target in meters
         :param d_dir_deg: yaw displacement to target in degrees
-        :param is_final: whether or not this is the final waypoint.
+        :param is_stop: whether or not this is a stopping waypoint.
                         If True, stops at waypoint. 
                         If False, follows through (keeping speed)
         """
         dist = math.hypot(dx, dy)
         d_dir = math.radians(d_dir_deg)
-        if is_final and dist < TRANSLATIONAL_THRESHOLD:
+        if self.is_final and dist < TRANSLATIONAL_THRESHOLD:
             self.stop_motors()
+            self.state = STATE_FINISHED
+            with self.nav_shared_state['lock']:
+                self.nav_shared_state['state'] = STATE_FINISHED
+            return
+        if dist < TRANSLATIONAL_THRESHOLD:
+            if is_stop:
+                self.stop_motors()
             self.state = STATE_ARRIVED
             with self.nav_shared_state['lock']:
                 self.nav_shared_state['state'] = STATE_ARRIVED
@@ -384,7 +433,7 @@ class NavigationController:
         w_cmd = max(-w_cmd_max, min(w_cmd, w_cmd_max))
 
         # tune linear pid
-        if is_final:
+        if is_stop:
             # Final waypoint: distance PID, slows down as dist → 0
             e_dist = dist
             v_cmd = self.dist_pid.step(e_dist, dt)
@@ -465,7 +514,7 @@ class NavigationController:
 
         
 
-def main():
+def main(filename=None):
     """Main entry point."""
     shared_state = {
             'x': 0.0,
@@ -484,7 +533,7 @@ def main():
 
     command_queue = Queue()
     navigation = NavigationController(shared_state, nav_shared_state, command_queue)
-    motion_capture = MotionCaptureThread(shared_state, nav_shared_state)
+    motion_capture = MotionCaptureThread(shared_state, nav_shared_state, filename=filename)
     bluetooth_control = BluetoothControlThread(shared_state, command_queue)
     
     # Start threads
@@ -496,18 +545,100 @@ def main():
     print("✓ Bluetooth control thread started")
 
     navigation.state = STATE_IDLE
+    dt = 1.0 / CONTROL_RATE
+    if filename is None:
+        try:
+            waiting = True
+            while True:
+                if waiting:
+                    print("Select waypoint and press enter to start")
+                    waiting = False
 
-    try:
-        dt = 1.0 / CONTROL_RATE
-        while True:
-            navigation.update(dt=dt)
-            time.sleep(dt)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        motion_capture.stop()
-        bluetooth_control.stop()
+                if cv2.waitKey(0) == 13:
+                    waiting = True
+                    while True:
+                        navigation.update(dt=dt)
+                        time.sleep(dt)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            motion_capture.stop()
+            bluetooth_control.stop()
+                        
+    else:
+        with open(filename, "r") as f:
+            cfg = yaml.safe_load(f)
+        waypoints = cfg.get("waypoints", [])
+        if not waypoints:
+            print("No waypoints found in waypoints.yaml")
+            return
+        else:
+            print(f"Loaded {len(waypoints)} waypoints from file.")
+        wp_idx = 0
+        wp = waypoints[wp_idx]
+        motion_capture.set_waypoint(wp["x"], wp["y"])
+        print('Waiting for robot to be placed at starting waypoint')
+        try:
+            count = CONTROL_RATE * 2 #must be at starting waypoint for at least 2 seconds
+            while True:
+                with shared_state['lock']:
+                    rel_x = shared_state['x']
+                    rel_y = shared_state['y']
+                if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD:
+                    count -= 1
+                    if count == 0:
+                        break
+                time.sleep(dt)
+        except KeyboardInterrupt:
+            motion_capture.stop()
+            bluetooth_control.stop()
+            return
+            
+            
+        wp_idx = 1
+        wp = waypoints[wp_idx]
+        motion_capture.set_waypoint(wp["x"], wp["y"])
+        navigation.set_is_final(wp_idx + 1 == len(waypoints))
+        try:
+            while True:
+                navigation.update(dt=dt, is_stop=wp.get("stop", True))
+                # check to advance to next waypoint or not
+                with nav_shared_state['lock']:
+                    state = nav_shared_state['state']
+                if state == STATE_ARRIVED:
+                    if wp_idx + 1 < len(waypoints):
+                        wp_idx += 1
+                        wp = waypoints[wp_idx]
+                        print(f"Advancing to waypoint {wp_idx}: {wp}")
+
+                        motion_capture.set_waypoint(wp["x"], wp["y"])
+                        navigation.set_is_final(wp_idx + 1 == len(waypoints))
+
+                        # resume driving
+                        with nav_shared_state['lock']:
+                            nav_shared_state['state'] = STATE_DRIVING
+                    else:
+                        # no more waypoints; go idle
+                        with nav_shared_state['lock']:
+                            nav_shared_state['state'] = STATE_IDLE
+                        navigation.stop_motors()
+                        print("All waypoints completed.")
+                        break
+                elif state == STATE_FINISHED:
+                    navigation.stop_motors()
+                    print("All waypoints completed.")
+                    break
+                time.sleep(dt)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            motion_capture.stop()
+            bluetooth_control.stop()
 
 
 if __name__ == '__main__':
-    main()
+    args = parser.parse_args()
+    if args.f == "None":
+        main()
+    elif os.path.exists(args.f):
+        main(filename=args.f)

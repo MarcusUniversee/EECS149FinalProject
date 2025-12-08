@@ -15,7 +15,7 @@ or if another python version is needed, find the path of your python installatio
 
 4. Set the camera ID to the camera id of the webcam inside `autonomous_navigation.py`
 
-5. `python autonomous_navigation.py [WAYPOINT YAML]`
+5. `python autonomous_navigation.py -f [WAYPOINT YAML]` or `python autonomous_navigation.py` for just mouse GUI navigation
 
 For now, keep WAYPOINT YAML empty, sicne this is not implemented yet
 

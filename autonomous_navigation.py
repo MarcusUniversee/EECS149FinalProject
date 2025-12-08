@@ -221,6 +221,7 @@ class MotionCaptureThread(threading.Thread):
                 (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
                 (0, 255, 0), 2
             )
+            
             if len(detections) > 0:
                 robot_detection = detections[0]
                 # Get pose
@@ -243,6 +244,34 @@ class MotionCaptureThread(threading.Thread):
                     x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
                     self.sp_x = int(round(x_px))
                     self.sp_y = int(round(y_px))
+                
+                #draw on gui
+                cv2.putText(
+                    frame,
+                    f"x: {self.sp_xm:.1f}, y: {self.sp_ym:.1f}, yaw: {yaw:.1f} deg",
+                    (20, 40),                      # position (x, y)
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1.0,                           # font scale
+                    (0, 255, 0),                   # color (B, G, R)
+                    2,                             # thickness
+                    cv2.LINE_AA
+                )
+                corners = robot_detection.corners
+                cx = int(np.mean(corners[:, 0]))
+                cy = int(np.mean(corners[:, 1]))
+                angle_rad = math.radians(yaw)
+                L = 80
+                ex = int(cx + L * math.cos(angle_rad))
+                ey = int(cy + L * math.sin(angle_rad))
+                cv2.arrowedLine(
+                    frame,
+                    (cx, cy),
+                    (ex, ey),
+                    (0, 0, 255),   # red arrow
+                    3,
+                    tipLength=0.3
+                )
+
                 # Update tracker
                 rel_x = self.sp_xm - x
                 rel_y = self.sp_ym - y
@@ -532,7 +561,11 @@ def main(filename=None):
     }
 
     command_queue = Queue()
-    navigation = NavigationController(shared_state, nav_shared_state, command_queue)
+    navigation = NavigationController(shared_state, nav_shared_state, command_queue,
+                 max_power=0.6,
+                 v_cruise=0.6,
+                 dist_kp=0.8, dist_ki=0.0, dist_kd=0.1,
+                 head_kp=2.0, head_ki=0.0, head_kd=0.1)
     motion_capture = MotionCaptureThread(shared_state, nav_shared_state, filename=filename)
     bluetooth_control = BluetoothControlThread(shared_state, command_queue)
     
@@ -588,6 +621,8 @@ def main(filename=None):
                     count -= 1
                     if count == 0:
                         break
+                else:
+                    count = CONTROL_RATE * 2
                 time.sleep(dt)
         except KeyboardInterrupt:
             motion_capture.stop()

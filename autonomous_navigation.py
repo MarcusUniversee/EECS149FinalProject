@@ -18,7 +18,7 @@ parser.add_argument("-f", default="None", help="Filepath to waypoint yaml")
 
 # ==================== CONFIGURATION ====================
 # Camera settings
-CAMERA_ID = 2
+CAMERA_ID = 1
 IMAGE_RES = (1920, 1080)
 CALIBRATION_FILE = 'camera_calibration.yaml'
 
@@ -35,7 +35,7 @@ BT_CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
-TRANSLATIONAL_THRESHOLD = 0.015 # meters - waypoint reached if within this
+TRANSLATIONAL_THRESHOLD = 0.03 # meters - waypoint reached if within this
 TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
@@ -49,6 +49,8 @@ STATE_DRIVING = 1
 STATE_ARRIVED = 2
 STATE_FINISHED = 3
 BOX_SIZE  = 30
+
+MIN_MOTOR_SPEED = 0.1
 # =======================================================
 
 def load_camera_calibration(path):
@@ -180,9 +182,8 @@ class MotionCaptureThread(threading.Thread):
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             self.sp_x, self.sp_y = x, y
-            print("New waypoint:", x, y)
-            with self.nav_shared_state['lock']:
-                self.nav_shared_state['state'] = STATE_DRIVING
+            print(f"New waypoint set: ({x}, {y}) - Press Enter to navigate")
+            # Don't change state here - let main thread control it
     
     def run(self):
         """Main tracking loop - runs continuously at high speed."""
@@ -195,10 +196,11 @@ class MotionCaptureThread(threading.Thread):
                 continue
             
             # Convert to grayscale
-            frame[frame < 80] = 0
-            frame[frame > 200] = 255
+            frame[frame < 180] = 0
+            frame[frame > 240] = 255
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             #gray = cv2.GaussianBlur(gray, (3, 3), 0)
+            
             
             # Detect tags
             detections = self.detector.detect(
@@ -221,7 +223,6 @@ class MotionCaptureThread(threading.Thread):
                 (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
                 (0, 255, 0), 2
             )
-            
             if len(detections) > 0:
                 robot_detection = detections[0]
                 # Get pose
@@ -248,7 +249,7 @@ class MotionCaptureThread(threading.Thread):
                 #draw on gui
                 cv2.putText(
                     frame,
-                    f"x: {self.sp_xm:.1f}, y: {self.sp_ym:.1f}, yaw: {yaw:.1f} deg",
+                    f"x: {x:.4f}, y: {y:.4f}, yaw: {yaw:.1f} deg",
                     (20, 40),                      # position (x, y)
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1.0,                           # font scale
@@ -271,13 +272,26 @@ class MotionCaptureThread(threading.Thread):
                     3,
                     tipLength=0.3
                 )
-
+                corners = corners.astype(int)
+                for i in range(4):
+                    cv2.line(frame, tuple(corners[i]), tuple(corners[(i+1) % 4]), (255, 0, 0), 2)
                 # Update tracker
                 rel_x = self.sp_xm - x
                 rel_y = self.sp_ym - y
                 target_yaw = math.degrees(math.atan2(rel_y, rel_x))
-                rel_yaw = target_yaw - yaw # positive means turn left, negative means turn right
+                rel_yaw = yaw - target_yaw # positive means turn left, negative means turn right
                 rel_yaw = (rel_yaw + 180) % 360 - 180
+                cv2.putText(
+                    frame,
+                    f"Desired:  x: {self.sp_xm:.4f}, y: {self.sp_ym:.4f}, yaw: {target_yaw:.1f} deg",
+                    (20, 80),                      # position (x, y)
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1.0,                           # font scale
+                    (0, 0, 255),                   # color (B, G, R)
+                    2,                             # thickness
+                    cv2.LINE_AA
+                )
+                
                 
                 # Update shared state (thread-safe with lock)
                 with self.shared_state['lock']:
@@ -285,14 +299,12 @@ class MotionCaptureThread(threading.Thread):
                     self.shared_state['y'] = rel_y
                     self.shared_state['yaw'] = rel_yaw
                     self.shared_state['tracking'] = True
+                    self.shared_state['frame'] = frame.copy()  # Store frame for display
             else:
                 # Lost tracking
                 with self.shared_state['lock']:
                     self.shared_state['tracking'] = False
-            cv2.imshow(WINDOW, frame)
-            if cv2.waitKey(1) == 27:
-                self.running = False
-                break
+                    self.shared_state['frame'] = frame.copy()  # Store frame even when not tracking
     
     def set_waypoint(self, x, y):
         self.sp_xm, self.sp_ym = float(x), float(y)
@@ -351,7 +363,7 @@ class BluetoothControlThread(threading.Thread):
                             await client.write_gatt_char(BT_CHAR_UUID, command.encode(), response=False)
                         
                         # Small delay to prevent CPU spinning
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.02)
                         
                     except Exception as e:
                         print(f"Command send error: {e}")
@@ -492,6 +504,10 @@ class NavigationController:
         right /= m
         left_power  = left * self.max_power
         right_power = right * self.max_power
+        if abs(left_power) < MIN_MOTOR_SPEED and abs(left_power) > 0:
+            left_power = MIN_MOTOR_SPEED * (1 if left_power > 0 else -1)
+        if abs(right_power) < MIN_MOTOR_SPEED and abs(right_power) > 0:
+            right_power = MIN_MOTOR_SPEED * (1 if right_power > 0 else -1)
         self.command_queue.put((left_power, right_power))
     
     def _control_turning(self, rel_x, rel_y, rel_yaw):
@@ -552,6 +568,7 @@ def main(filename=None):
             'tracking': False,
             'bt_connected': False,
             'status': 'Initializing',
+            'frame': None,
             'lock': threading.Lock()
         }
     
@@ -564,8 +581,8 @@ def main(filename=None):
     navigation = NavigationController(shared_state, nav_shared_state, command_queue,
                  max_power=0.6,
                  v_cruise=0.6,
-                 dist_kp=0.8, dist_ki=0.0, dist_kd=0.1,
-                 head_kp=2.0, head_ki=0.0, head_kd=0.1)
+                 dist_kp=0.2, dist_ki=0.0, dist_kd=0.0,
+                 head_kp=0.1, head_ki=0.0, head_kd=0.0)
     motion_capture = MotionCaptureThread(shared_state, nav_shared_state, filename=filename)
     bluetooth_control = BluetoothControlThread(shared_state, command_queue)
     
@@ -581,20 +598,54 @@ def main(filename=None):
     dt = 1.0 / CONTROL_RATE
     if filename is None:
         try:
-            waiting = True
+            print("Click on the image to set a waypoint, then press Enter to navigate")
+            print("Press ESC to exit")
             while True:
-                if waiting:
-                    print("Select waypoint and press enter to start")
-                    waiting = False
-
-                if cv2.waitKey(0) == 13:
-                    waiting = True
+                # Display frame from motion capture thread
+                with shared_state['lock']:
+                    frame = shared_state.get('frame')
+                
+                if frame is not None:
+                    cv2.imshow(WINDOW, frame)
+                
+                # Wait for key press
+                key = cv2.waitKey(1)
+                if key == 13:  # Enter key
+                    print("Starting navigation to waypoint...")
+                    navigation.reset()  # Reset PID controllers
+                    with nav_shared_state['lock']:
+                        nav_shared_state['state'] = STATE_DRIVING
+                    
+                    # Navigate until arrived or finished
                     while True:
+                        # Display frame
+                        with shared_state['lock']:
+                            frame = shared_state.get('frame')
+                        if frame is not None:
+                            cv2.imshow(WINDOW, frame)
+                        
+                        with nav_shared_state['lock']:
+                            state = nav_shared_state['state']
+                        
+                        if state == STATE_ARRIVED or state == STATE_FINISHED:
+                            print("✓ Waypoint reached! Click to set another waypoint and press Enter")
+                            with nav_shared_state['lock']:
+                                nav_shared_state['state'] = STATE_IDLE
+                            break
+                        
                         navigation.update(dt=dt)
                         time.sleep(dt)
+                        
+                        # Check for ESC key
+                        if cv2.waitKey(1) == 27:  # ESC key
+                            raise KeyboardInterrupt
+                
+                elif key == 27:  # ESC key
+                    break
         except KeyboardInterrupt:
-            pass
+            print("\nShutting down...")
         finally:
+            navigation.stop_motors()
             motion_capture.stop()
             bluetooth_control.stop()
                         
@@ -648,6 +699,7 @@ def main(filename=None):
 
                         motion_capture.set_waypoint(wp["x"], wp["y"])
                         navigation.set_is_final(wp_idx + 1 == len(waypoints))
+                        navigation.reset()  # Reset PID controllers for new waypoint
 
                         # resume driving
                         with nav_shared_state['lock']:

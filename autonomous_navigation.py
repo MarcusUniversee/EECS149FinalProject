@@ -10,6 +10,7 @@ import numpy as np
 import yaml
 from pupil_apriltags import Detector
 from bleak import BleakClient
+from pid_controller import PID
 
 # ==================== CONFIGURATION ====================
 # Camera settings
@@ -30,14 +31,17 @@ BT_CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
+TRANSLATIONAL_THRESHOLD = 0.015 # meters - waypoint reached if within this
 TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 Kp = 0.008  # Proportional gain for heading correction
+Ki = 0.0
+Kd = 0.0
 
 # Navigation states
 STATE_IDLE = 0
-STATE_TURNING = 1
+STATE_DRIVING = 1
 STATE_ARRIVED = 2
 BOX_SIZE  = 30
 # =======================================================
@@ -152,7 +156,7 @@ class MotionCaptureThread(threading.Thread):
             self.sp_x, self.sp_y = x, y
             print("New waypoint:", x, y)
             with self.nav_shared_state['lock']:
-                self.nav_shared_state['state'] = STATE_TURNING
+                self.nav_shared_state['state'] = STATE_DRIVING
     
     def run(self):
         """Main tracking loop - runs continuously at high speed."""
@@ -291,7 +295,15 @@ class BluetoothControlThread(threading.Thread):
 
 
 class NavigationController:
-    def __init__(self, shared_state, nav_shared_state, command_queue):
+    def __init__(self, 
+                 shared_state, 
+                 nav_shared_state, 
+                 command_queue,
+                 max_power=0.6,
+                 v_cruise=0.6,
+                 dist_kp=0.8, dist_ki=0.0, dist_kd=0.1,
+                 head_kp=2.0, head_ki=0.0, head_kd=0.1
+                 ):
         """
         Initialize navigation controller.
         
@@ -303,8 +315,17 @@ class NavigationController:
         self.nav_shared_state = nav_shared_state
         self.command_queue = command_queue
         self.state = STATE_IDLE
+        self.max_power = max_power   # max motor power (e.g. 0.6)
+        self.v_cruise = v_cruise     # forward power for intermediate waypoints
+
+        self.dist_pid = PID(dist_kp, dist_ki, dist_kd, integral_limit=2.0)
+        self.head_pid = PID(head_kp, head_ki, head_kd, integral_limit=2.0)
+
+    def reset(self):
+        self.dist_pid.reset()
+        self.head_pid.reset()
     
-    def update(self):
+    def update(self, dt=0.02):
         """
         Update control loop (call at CONTROL_RATE Hz).
         """
@@ -326,10 +347,79 @@ class NavigationController:
             self.stop_motors()
             return
         if self.state == STATE_ARRIVED and abs(rel_yaw) >= HEADING_THRESHOLD:
-            self.state = STATE_TURNING
-        self._control_turning(rel_x, rel_y, rel_yaw)
+            self.state = STATE_DRIVING
+
+        #TODO: FUTURE/NEXT STEPS. Implement multi waypoint navigation here
+
+
+
+        #
+
+        # navigation to final waypoint
+        self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_final=True)
+
+    def waypoint_navigate(self, dx, dy, d_dir_deg, dt, is_final=False):
+        """
+        Docstring for waypoint_navigate
+        
+        :param dx: x displacement to target in meters
+        :param dy: y displacement to target in meters
+        :param d_dir_deg: yaw displacement to target in degrees
+        :param is_final: whether or not this is the final waypoint.
+                        If True, stops at waypoint. 
+                        If False, follows through (keeping speed)
+        """
+        dist = math.hypot(dx, dy)
+        d_dir = math.radians(d_dir_deg)
+        if is_final and dist < TRANSLATIONAL_THRESHOLD:
+            self.stop_motors()
+            self.state = STATE_ARRIVED
+            with self.nav_shared_state['lock']:
+                self.nav_shared_state['state'] = STATE_ARRIVED
+            return
+        # tune heading pid
+        #at_final = is_final and dist < TRANSLATIONAL_THRESHOLD  # meters threshold (tune)
+        w_cmd = self.head_pid.step(d_dir, dt)
+        w_cmd_max = 1.0
+        w_cmd = max(-w_cmd_max, min(w_cmd, w_cmd_max))
+
+        # tune linear pid
+        if is_final:
+            # Final waypoint: distance PID, slows down as dist → 0
+            e_dist = dist
+            v_cmd = self.dist_pid.step(e_dist, dt)
+
+            # Never go backwards for final approach (optional):
+            v_cmd = max(0.0, v_cmd)
+
+            # Limit linear command
+            v_cmd_max = 1.0
+            v_cmd = max(-v_cmd_max, min(v_cmd, v_cmd_max))
+        else:
+            # Intermediate waypoint: constant cruising speed
+            # Only reduce speed if you are pointing too far away from path
+            # (optional condition - you can remove if you truly never want to slow)
+            angle_mag = abs(d_dir)
+            if angle_mag < math.radians(90):
+                v_cmd = self.v_cruise / self.max_power  # normalized to ~1 range
+            else:
+                # if facing away badly, slow down
+                v_cmd = 0.0
+        
+        #send motor commands
+        left  = v_cmd - w_cmd
+        right = v_cmd + w_cmd
+        m = max(1.0, abs(left), abs(right))
+        left  /= m
+        right /= m
+        left_power  = left * self.max_power
+        right_power = right * self.max_power
+        self.command_queue.put((left_power, right_power))
     
     def _control_turning(self, rel_x, rel_y, rel_yaw):
+        """
+        This is for turning towards a target
+        """
         
         # Check if facing target
         if abs(rel_yaw) < HEADING_THRESHOLD:
@@ -410,7 +500,7 @@ def main():
     try:
         dt = 1.0 / CONTROL_RATE
         while True:
-            navigation.update()
+            navigation.update(dt=dt)
             time.sleep(dt)
     except KeyboardInterrupt:
         pass

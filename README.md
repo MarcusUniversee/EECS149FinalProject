@@ -13,6 +13,12 @@ or if another python version is needed, find the path of your python installatio
 
 3. Install required libraries (only need to do this once): `pip install -r requirements.txt`
 
+4. Set the camera ID to the camera id of the webcam inside `autonomous_navigation.py`
+
+5. `python autonomous_navigation.py [WAYPOINT YAML]`
+
+For now, keep WAYPOINT YAML empty, sicne this is not implemented yet
+
 ## Setup for deploying code onto polulu
 
 1. Make sure you are on WSL outside the repo. OR use a linux machine/VM

@@ -35,7 +35,7 @@ BT_CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
-TRANSLATIONAL_THRESHOLD = 0.03 # meters - waypoint reached if within this
+TRANSLATIONAL_THRESHOLD = 0.05 # meters - waypoint reached if within this
 TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
@@ -50,7 +50,8 @@ STATE_ARRIVED = 2
 STATE_FINISHED = 3
 BOX_SIZE  = 30
 
-MIN_MOTOR_SPEED = 0.1
+MIN_LIN_SPEED = 0.09
+MIN_ROT_SPEED = 0.05
 # =======================================================
 
 def load_camera_calibration(path):
@@ -87,7 +88,7 @@ def meters_to_px(X, Y, Z, K):
 
 def initialize_camera(camera_id, resolution):
     """Initialize camera."""
-    cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(camera_id)
     
     if not cap.isOpened():
         cap = cv2.VideoCapture(camera_id)
@@ -196,8 +197,8 @@ class MotionCaptureThread(threading.Thread):
                 continue
             
             # Convert to grayscale
-            frame[frame < 180] = 0
-            frame[frame > 240] = 255
+            frame[frame < 50] = 0
+            frame[frame > 245] = 255
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             #gray = cv2.GaussianBlur(gray, (3, 3), 0)
             
@@ -249,7 +250,7 @@ class MotionCaptureThread(threading.Thread):
                 #draw on gui
                 cv2.putText(
                     frame,
-                    f"x: {x:.4f}, y: {y:.4f}, yaw: {yaw:.1f} deg",
+                    f"x: {x:.4f}, y: {y:.4f}, z: {z:.4f}, yaw: {yaw:.1f} deg",
                     (20, 40),                      # position (x, y)
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1.0,                           # font scale
@@ -299,12 +300,12 @@ class MotionCaptureThread(threading.Thread):
                     self.shared_state['y'] = rel_y
                     self.shared_state['yaw'] = rel_yaw
                     self.shared_state['tracking'] = True
-                    self.shared_state['frame'] = frame.copy()  # Store frame for display
+                    self.shared_state['frame'] = frame  # Store frame for display
             else:
                 # Lost tracking
                 with self.shared_state['lock']:
                     self.shared_state['tracking'] = False
-                    self.shared_state['frame'] = frame.copy()  # Store frame even when not tracking
+                    self.shared_state['frame'] = frame # Store frame even when not tracking
     
     def set_waypoint(self, x, y):
         self.sp_xm, self.sp_ym = float(x), float(y)
@@ -386,9 +387,10 @@ class NavigationController:
                  shared_state, 
                  nav_shared_state, 
                  command_queue,
-                 max_power=0.6,
+                 max_vel=0.6,
+                 max_rot=0.6,
                  v_cruise=0.6,
-                 dist_kp=0.8, dist_ki=0.0, dist_kd=0.1,
+                 dist_kp=2.8, dist_ki=0.0, dist_kd=0.1,
                  head_kp=2.0, head_ki=0.0, head_kd=0.1
                  ):
         """
@@ -402,7 +404,8 @@ class NavigationController:
         self.nav_shared_state = nav_shared_state
         self.command_queue = command_queue
         self.state = STATE_IDLE
-        self.max_power = max_power   # max motor power (e.g. 0.6)
+        self.max_vel = max_vel   # max motor power (e.g. 0.6)
+        self.max_rot = max_rot
         self.v_cruise = v_cruise     # forward power for intermediate waypoints
 
         self.dist_pid = PID(dist_kp, dist_ki, dist_kd, integral_limit=2.0)
@@ -441,7 +444,7 @@ class NavigationController:
         # navigation to final waypoint
         self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_stop=is_stop)
 
-    def waypoint_navigate(self, dx, dy, d_dir_deg, dt, is_stop=False):
+    def waypoint_navigate(self, dx, dy, d_dir_deg, dt, is_stop=True):
         """
         Docstring for waypoint_navigate
         
@@ -473,41 +476,41 @@ class NavigationController:
         w_cmd_max = 1.0
         w_cmd = max(-w_cmd_max, min(w_cmd, w_cmd_max))
 
-        # tune linear pid
-        if is_stop:
-            # Final waypoint: distance PID, slows down as dist → 0
-            e_dist = dist
-            v_cmd = self.dist_pid.step(e_dist, dt)
-
-            # Never go backwards for final approach (optional):
-            v_cmd = max(0.0, v_cmd)
-
-            # Limit linear command
-            v_cmd_max = 1.0
-            v_cmd = max(-v_cmd_max, min(v_cmd, v_cmd_max))
+        if w_cmd > 0:
+            w_cmd = min(w_cmd, self.max_rot)
         else:
-            # Intermediate waypoint: constant cruising speed
-            # Only reduce speed if you are pointing too far away from path
-            # (optional condition - you can remove if you truly never want to slow)
-            angle_mag = abs(d_dir)
-            if angle_mag < math.radians(90):
-                v_cmd = self.v_cruise / self.max_power  # normalized to ~1 range
-            else:
-                # if facing away badly, slow down
-                v_cmd = 0.0
+            w_cmd = max(w_cmd, -self.max_rot)
+
+        # tune linear pid
+        # Final waypoint: distance PID, slows down as dist → 0
+        e_dist = dist
+        
+        v_cmd = self.dist_pid.step(e_dist, dt)
+        # Never go backwards for final approach (optional):
+        v_cmd = max(0.0, v_cmd)
+
+        # Limit linear command
+        v_cmd_max = 1.0
+        v_cmd = max(-v_cmd_max, min(v_cmd, v_cmd_max))
+        angle_mag = abs(d_dir)
+        if angle_mag < math.radians(15):
+            v_cmd = min(self.v_cruise, v_cmd)
+        v_cmd = min(v_cmd, self.max_vel)
         
         #send motor commands
+        if abs(v_cmd) < MIN_LIN_SPEED and abs(v_cmd) > 0:
+            v_cmd = MIN_LIN_SPEED * (1 if v_cmd > 0 else -1)
+        if abs(w_cmd) < MIN_ROT_SPEED and abs(w_cmd) > 0:
+            w_cmd = MIN_ROT_SPEED * (1 if w_cmd > 0 else -1)
         left  = v_cmd - w_cmd
         right = v_cmd + w_cmd
         m = max(1.0, abs(left), abs(right))
         left  /= m
         right /= m
-        left_power  = left * self.max_power
-        right_power = right * self.max_power
-        if abs(left_power) < MIN_MOTOR_SPEED and abs(left_power) > 0:
-            left_power = MIN_MOTOR_SPEED * (1 if left_power > 0 else -1)
-        if abs(right_power) < MIN_MOTOR_SPEED and abs(right_power) > 0:
-            right_power = MIN_MOTOR_SPEED * (1 if right_power > 0 else -1)
+        print(f"left: {left}, right: {right} ")
+        left_power  = left
+        right_power = right
+        
         self.command_queue.put((left_power, right_power))
     
     def _control_turning(self, rel_x, rel_y, rel_yaw):
@@ -541,10 +544,10 @@ class NavigationController:
             right_speed = -abs(turn_correction)
         
         # Ensure minimum speed to overcome static friction
-        if abs(left_speed) < MIN_TURN_SPEED and abs(left_speed) > 0:
-            left_speed = MIN_TURN_SPEED * (1 if left_speed > 0 else -1)
-        if abs(right_speed) < MIN_TURN_SPEED and abs(right_speed) > 0:
-            right_speed = MIN_TURN_SPEED * (1 if right_speed > 0 else -1)
+        # if abs(left_speed) < MIN_TURN_SPEED and abs(left_speed) > 0:
+        #     left_speed = MIN_TURN_SPEED * (1 if left_speed > 0 else -1)
+        # if abs(right_speed) < MIN_TURN_SPEED and abs(right_speed) > 0:
+        #     right_speed = MIN_TURN_SPEED * (1 if right_speed > 0 else -1)
         
         # Send motor command
         self.command_queue.put((left_speed, right_speed))
@@ -579,10 +582,11 @@ def main(filename=None):
 
     command_queue = Queue()
     navigation = NavigationController(shared_state, nav_shared_state, command_queue,
-                 max_power=0.6,
-                 v_cruise=0.6,
-                 dist_kp=0.2, dist_ki=0.0, dist_kd=0.0,
-                 head_kp=0.1, head_ki=0.0, head_kd=0.0)
+                 max_vel=0.2,
+                 max_rot=0.1,
+                 v_cruise=0.25,
+                 dist_kp=0.9, dist_ki=0.0, dist_kd=0.01,
+                 head_kp=0.03, head_ki=0.0, head_kd=0.0)
     motion_capture = MotionCaptureThread(shared_state, nav_shared_state, filename=filename)
     bluetooth_control = BluetoothControlThread(shared_state, command_queue)
     
@@ -629,6 +633,7 @@ def main(filename=None):
                         
                         if state == STATE_ARRIVED or state == STATE_FINISHED:
                             print("✓ Waypoint reached! Click to set another waypoint and press Enter")
+                            navigation.stop_motors()
                             with nav_shared_state['lock']:
                                 nav_shared_state['state'] = STATE_IDLE
                             break

@@ -39,9 +39,17 @@ TRANSLATIONAL_THRESHOLD = 0.05 # meters - waypoint reached if within this
 TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
-Kp = 0.008  # Proportional gain for heading correction
-Ki = 0.0
-Kd = 0.0
+
+MAX_VEL = 0.2
+MAX_ROT = 0.1
+CRUISING_SPEED = 0.2
+DIST_KP = 0.9
+DIST_KI = 0.0 
+DIST_KD = 0.01
+HEAD_KP = 0.03
+HEAD_KI = 0.0
+HEAD_KD = 0.0
+
 
 # Navigation states
 STATE_IDLE = 0
@@ -176,6 +184,7 @@ class MotionCaptureThread(threading.Thread):
         self.sp_xm = 0
         self.sp_ym = 0
         self.current = None
+        self.heading = None
         print("✓ Motion capture initialized")
         
         return True
@@ -224,6 +233,18 @@ class MotionCaptureThread(threading.Thread):
                 (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
                 (0, 255, 0), 2
             )
+            if self.heading:
+                L = 80
+                ex = int(self.sp_x + L * math.cos(math.radians(self.heading)))
+                ey = int(self.sp_y + L * math.sin(math.radians(self.heading)))
+                cv2.arrowedLine(
+                    frame,
+                    (self.sp_x, self.sp_y),
+                    (ex, ey),
+                    (255, 0, 255),   # red arrow
+                    3,
+                    tipLength=0.3
+                )
             if len(detections) > 0:
                 robot_detection = detections[0]
                 # Get pose
@@ -307,8 +328,12 @@ class MotionCaptureThread(threading.Thread):
                     self.shared_state['tracking'] = False
                     self.shared_state['frame'] = frame # Store frame even when not tracking
     
-    def set_waypoint(self, x, y):
-        self.sp_xm, self.sp_ym = float(x), float(y)
+    def set_waypoint(self, x, y, heading=None):
+        self.sp_xm, self.sp_ym= float(x), float(y)
+        if heading:
+            self.heading = float(heading)
+        else:
+            self.heading = None
         print("Waypoint (from file):", self.sp_xm, self.sp_ym)
         with self.nav_shared_state['lock']:
             self.nav_shared_state['state'] = STATE_DRIVING
@@ -513,49 +538,6 @@ class NavigationController:
         
         self.command_queue.put((left_power, right_power))
     
-    def _control_turning(self, rel_x, rel_y, rel_yaw):
-        """
-        This is for turning towards a target
-        """
-        
-        # Check if facing target
-        if abs(rel_yaw) < HEADING_THRESHOLD:
-            # Arrived at correct orientation
-            self.stop_motors()
-            self.state = STATE_ARRIVED
-            with self.nav_shared_state['lock']:
-                self.nav_shared_state['state'] = STATE_ARRIVED
-            print(f"✓ Facing target! Error: {rel_yaw:.1f}°")
-            with self.shared_state['lock']:
-                self.shared_state['status'] = "Facing target"
-            return
-        
-        # Calculate motor speeds with proportional control
-        
-        turn_correction = Kp * rel_yaw
-        turn_correction = max(-TURN_SPEED, min(TURN_SPEED, turn_correction))  # Clamp
-        
-        # Differential drive: opposite wheel directions for in-place rotation
-        if rel_yaw > 0:  # Turn left (counterclockwise)
-            left_speed = -abs(turn_correction)
-            right_speed = abs(turn_correction)
-        else:  # Turn right (clockwise)
-            left_speed = abs(turn_correction)
-            right_speed = -abs(turn_correction)
-        
-        # Ensure minimum speed to overcome static friction
-        # if abs(left_speed) < MIN_TURN_SPEED and abs(left_speed) > 0:
-        #     left_speed = MIN_TURN_SPEED * (1 if left_speed > 0 else -1)
-        # if abs(right_speed) < MIN_TURN_SPEED and abs(right_speed) > 0:
-        #     right_speed = MIN_TURN_SPEED * (1 if right_speed > 0 else -1)
-        
-        # Send motor command
-        self.command_queue.put((left_speed, right_speed))
-        
-        # Update status
-        with self.shared_state['lock']:
-            self.shared_state['status'] = f"Turning (error: {rel_yaw:+.1f}°)"
-    
     def stop_motors(self):
         """Stop all motors."""
         self.command_queue.put((0.0, 0.0))
@@ -582,11 +564,11 @@ def main(filename=None):
 
     command_queue = Queue()
     navigation = NavigationController(shared_state, nav_shared_state, command_queue,
-                 max_vel=0.2,
-                 max_rot=0.1,
-                 v_cruise=0.25,
-                 dist_kp=0.9, dist_ki=0.0, dist_kd=0.01,
-                 head_kp=0.03, head_ki=0.0, head_kd=0.0)
+                 max_vel=MAX_VEL,
+                 max_rot=MAX_ROT,
+                 v_cruise=CRUISING_SPEED,
+                 dist_kp=DIST_KP, dist_ki=DIST_KI, dist_kd=DIST_KD,
+                 head_kp=HEAD_KP, head_ki=HEAD_KI, head_kd=HEAD_KD)
     motion_capture = MotionCaptureThread(shared_state, nav_shared_state, filename=filename)
     bluetooth_control = BluetoothControlThread(shared_state, command_queue)
     
@@ -665,7 +647,7 @@ def main(filename=None):
             print(f"Loaded {len(waypoints)} waypoints from file.")
         wp_idx = 0
         wp = waypoints[wp_idx]
-        motion_capture.set_waypoint(wp["x"], wp["y"])
+        motion_capture.set_waypoint(wp["x"], wp["y"], heading=wp["heading"])
         print('Waiting for robot to be placed at starting waypoint')
         try:
             count = CONTROL_RATE * 2 #must be at starting waypoint for at least 2 seconds
@@ -673,9 +655,11 @@ def main(filename=None):
                 with shared_state['lock']:
                     rel_x = shared_state['x']
                     rel_y = shared_state['y']
-                if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD:
+                    rel_yaw = shared_state['yaw']
+                if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD and rel_yaw < HEADING_THRESHOLD:
                     count -= 1
                     if count == 0:
+                        print('ROBOT IN CORRECT POSITION')
                         break
                 else:
                     count = CONTROL_RATE * 2

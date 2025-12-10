@@ -2,6 +2,7 @@ waypoints:
   - name: start
     x: 0.1
     y: 0.1
+    heading: 0
     stop: False
   - name: end
     x: 0.2

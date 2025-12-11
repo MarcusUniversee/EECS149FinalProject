@@ -15,9 +15,9 @@ or if another python version is needed, find the path of your python installatio
 
 4. Set the camera ID to the camera id of the webcam inside `autonomous_navigation.py`
 
-5. `python autonomous_navigation.py -f [WAYPOINT YAML]` or `python autonomous_navigation.py` for just mouse GUI navigation
+5. `python autonomous_navigation.py -f [WAYPOINT YAML] -l [LOG FILE]` or `python autonomous_navigation.py` for just mouse GUI navigation
 
-For now, keep WAYPOINT YAML empty, sicne this is not implemented yet
+For now, keep WAYPOINT YAML empty, since this is not implemented yet
 
 ## Setup for deploying code onto polulu
 

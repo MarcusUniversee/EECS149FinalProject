@@ -530,6 +530,10 @@ class NavigationController:
         if angle_mag < math.radians(15):
             v_cmd = min(self.v_cruise, v_cmd)
         v_cmd = min(v_cmd, self.max_vel)
+
+        #multiwaypoint
+        if not is_stop and d_dir < HEADING_THRESHOLD*2:
+            v_cmd = max(v_cmd, self.v_cruise)
         
         #send motor commands
         if abs(v_cmd) < MIN_LIN_SPEED and abs(v_cmd) > 0:

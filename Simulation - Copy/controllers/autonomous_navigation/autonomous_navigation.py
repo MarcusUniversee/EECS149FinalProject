@@ -8,6 +8,7 @@ from queue import Queue
 import numpy as np
 import yaml
 from pid_controller import PID
+import csv
 from controller import Robot, Supervisor
 
 # ==================== CONFIGURATION ====================
@@ -18,7 +19,8 @@ RIGHT_MOTOR_NAME = "RightMotor"
 GPS_NAME = "gps"
 IMU_NAME = "imu"
 DISPLAY_NAME = "display"
-FILENAME = None # "test.yaml"
+FILENAME = "test.yaml"
+LOGFILE = "test.csv"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
@@ -185,7 +187,7 @@ class NavigationController:
         self.command_queue.put((0.0, 0.0))
 
 
-def main(filename=None):
+def main(filename=None, logfile=None):
     robot = Supervisor()
     #get devices for simulating motion capture
     gps = robot.getDevice(GPS_NAME)
@@ -292,6 +294,8 @@ def main(filename=None):
         time.sleep(0.5)
         set_waypoint(1 if len(waypoints) > 1 else 0)
     latency_buffer = []
+    start_time = time.perf_counter()
+    log = []
 
     while robot.step(int(1000*dt)) != -1:
         # ========== "Motion capture": get robot pose from Webots ==========
@@ -309,6 +313,18 @@ def main(filename=None):
 
         yaw_deg = math.degrees(yaw- math.pi/2) #offset due to modeling things
         yaw_deg = (yaw_deg + 180.0) % 360.0 - 180.0
+        cur_time = time.perf_counter() - start_time
+        current = {
+            "t": cur_time,
+            "x": x_world,
+            "y": y_world,
+            "z": z_world,
+            "roll": roll,
+            "pitch": pitch,
+            "yaw": yaw
+        }
+
+        log.append(current)
 
         if filename is None:
             state = mouse.getState()
@@ -415,8 +431,15 @@ def main(filename=None):
             elif state == STATE_FINISHED:
                 navigation.stop_motors()
                 print("All waypoints completed (final threshold reached).")
+                if logfile is not None and log:
+                    logs = log
+                    fieldnames = list(logs[0].keys())
+                    with open(logfile, "w", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(logs)
                 break
 
 
 if __name__ == '__main__':
-    main(FILENAME)
+    main(FILENAME, LOGFILE)

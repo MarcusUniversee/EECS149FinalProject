@@ -12,9 +12,11 @@ from pupil_apriltags import Detector
 from bleak import BleakClient
 from pid_controller import PID
 import argparse
+import csv
 
 parser = argparse.ArgumentParser(description="Waypoint navigation")
-parser.add_argument("-f", default="None", help="Filepath to waypoint yaml")
+parser.add_argument("-f", default=None, help="Filepath to waypoint yaml")
+parser.add_argument("-l", default=None, help="Filepath to log file")
 
 # ==================== CONFIGURATION ====================
 # Camera settings
@@ -153,6 +155,7 @@ class MotionCaptureThread(threading.Thread):
         self.detector = None
         self.camera_matrix = None
         self.filename = filename
+        self.log = []
         cv2.namedWindow(WINDOW)
         if self.filename is None:
             cv2.setMouseCallback(WINDOW, self.mouse_callback)
@@ -185,6 +188,7 @@ class MotionCaptureThread(threading.Thread):
         self.sp_ym = 0
         self.current = None
         self.heading = None
+        self.start_time = time.perf_counter()
         print("✓ Motion capture initialized")
         
         return True
@@ -224,6 +228,7 @@ class MotionCaptureThread(threading.Thread):
                 ],
                 tag_size=TAG_SIZE
             )
+            cur_time = time.perf_counter() - self.start_time
             
             # Filter by quality
             #detections = [d for d in detections if d.decision_margin >= MIN_DECISION_MARGIN]
@@ -253,7 +258,8 @@ class MotionCaptureThread(threading.Thread):
                 z = robot_detection.pose_t[2, 0]
                 
                 roll, pitch, yaw = rotation_matrix_to_euler_angles(robot_detection.pose_R)
-                self.current = {
+                current = {
+                    "t": cur_time,
                     "x": x,
                     "y": y,
                     "z": z,
@@ -261,6 +267,9 @@ class MotionCaptureThread(threading.Thread):
                     "pitch": pitch,
                     "yaw": yaw
                 }
+                self.log.append(current)
+                self.current = current
+                
                 if self.filename is None:
                     self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.camera_matrix)
                 else:
@@ -544,7 +553,7 @@ class NavigationController:
 
         
 
-def main(filename=None):
+def main(filename=None, logfile=None):
     """Main entry point."""
     shared_state = {
             'x': 0.0,
@@ -625,16 +634,34 @@ def main(filename=None):
                         
                         # Check for ESC key
                         if cv2.waitKey(1) == 27:  # ESC key
+                            navigation.stop_motors()
+                            motion_capture.stop()
+                            bluetooth_control.stop()
                             raise KeyboardInterrupt
                 
                 elif key == 27:  # ESC key
-                    break
+                    navigation.stop_motors()
+                    motion_capture.stop()
+                    bluetooth_control.stop()
+                    raise KeyboardInterrupt
         except KeyboardInterrupt:
             print("\nShutting down...")
         finally:
+            print("logging")
             navigation.stop_motors()
             motion_capture.stop()
             bluetooth_control.stop()
+            motion_capture.join()
+            bluetooth_control.join()
+            if logfile is not None and motion_capture.log:
+                logs = motion_capture.log
+                fieldnames = list(logs[0].keys())
+                with open(logfile, "w", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(logs)
+
+            
                         
     else:
         with open(filename, "r") as f:
@@ -708,13 +735,23 @@ def main(filename=None):
         except KeyboardInterrupt:
             pass
         finally:
+            print("logging")
+            navigation.stop_motors()
             motion_capture.stop()
             bluetooth_control.stop()
+            motion_capture.join()
+            bluetooth_control.join()
+            if logfile is not None and motion_capture.log:
+                logs = motion_capture.log
+                fieldnames = list(logs[0].keys())
+                with open(logfile, "w", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(logs)
+
+            
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    if args.f == "None":
-        main()
-    elif os.path.exists(args.f):
-        main(filename=args.f)
+    main(filename=args.f, logfile=args.l)

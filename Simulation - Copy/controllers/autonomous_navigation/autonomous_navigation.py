@@ -12,11 +12,11 @@ from controller import Robot, Supervisor
 
 # ==================== CONFIGURATION ====================
 
-ROBOT_DEF_NAME = "MY_ROBOT"        # DEF name in the .wbt world file
-LEFT_MOTOR_NAME = "left wheel motor"
-RIGHT_MOTOR_NAME = "right wheel motor"
+ROBOT_DEF_NAME = "POLULU_ROBOT"        # DEF name in the .wbt world file
+LEFT_MOTOR_NAME = "LeftMotor"
+RIGHT_MOTOR_NAME = "RightMotor"
 GPS_NAME = "gps"
-IMU_NAME = "inertial unit"
+IMU_NAME = "imu"
 DISPLAY_NAME = "display"
 
 # Navigation control parameters
@@ -41,7 +41,11 @@ BOX_SIZE  = 30
 MIN_LIN_SPEED = 0.09
 MIN_ROT_SPEED = 0.05
 
-MAX_WHEEL_SPEED = 75.4 #720 rpm is the polulu max
+ #720 rpm is the polulu max
+ #12 rps
+ #75.4 rad/s
+
+MAX_WHEEL_SPEED = 75.4
 BLE_LATENCY_STEPS = 2
 
 WAYPOINT_FILE = "waypoint.yml"
@@ -87,16 +91,16 @@ class NavigationController:
         """
         Update control loop (call at CONTROL_RATE Hz).
         """
-        with self.nav_shared_state['lock']:
-            self.state = self.nav_shared_state['state']
+        #with self.nav_shared_state['lock']:
+        self.state = self.nav_shared_state['state']
         if self.state == STATE_IDLE:
             return
         
         # Get current robot state (thread-safe)
-        with self.shared_state['lock']:
-            rel_x = self.shared_state['x']
-            rel_y = self.shared_state['y']
-            rel_yaw = self.shared_state['yaw']
+        #with self.shared_state['lock']:
+        rel_x = self.shared_state['x']
+        rel_y = self.shared_state['y']
+        rel_yaw = self.shared_state['yaw']
 
         # navigation to final waypoint
         self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_stop=is_stop)
@@ -117,15 +121,15 @@ class NavigationController:
         if self.is_final and dist < TRANSLATIONAL_THRESHOLD:
             self.stop_motors()
             self.state = STATE_FINISHED
-            with self.nav_shared_state['lock']:
-                self.nav_shared_state['state'] = STATE_FINISHED
+            #with self.nav_shared_state['lock']:
+            self.nav_shared_state['state'] = STATE_FINISHED
             return
         if dist < TRANSLATIONAL_THRESHOLD:
             if is_stop:
                 self.stop_motors()
             self.state = STATE_ARRIVED
-            with self.nav_shared_state['lock']:
-                self.nav_shared_state['state'] = STATE_ARRIVED
+            #with self.nav_shared_state['lock']:
+            self.nav_shared_state['state'] = STATE_ARRIVED
             return
         # tune heading pid
         #at_final = is_final and dist < TRANSLATIONAL_THRESHOLD  # meters threshold (tune)
@@ -164,7 +168,6 @@ class NavigationController:
         m = max(1.0, abs(left), abs(right))
         left  /= m
         right /= m
-        print(f"left: {left}, right: {right} ")
         left_power  = left
         right_power = right
         
@@ -174,17 +177,20 @@ class NavigationController:
         """Stop all motors."""
         self.command_queue.put((0.0, 0.0))
 
-        
-
-def main(filename):
+def main():
     robot = Supervisor()
     #get devices for simulating motion capture
-    gps = robot.getDevice(GPS_NAME)\
+    gps = robot.getDevice(GPS_NAME)
+    mouse = robot.getMouse()
+    mouse.enable(int(1000/MOTION_CAPTURE_RATE))
+    mouse.enable3dPosition()
 
-    gps.enable(1000/MOTION_CAPTURE_RATE)
+    marker = robot.getFromDef("WAYPOINT_MARKER")
+    marker_translation = marker.getField("translation")
+    gps.enable(int(1000/MOTION_CAPTURE_RATE))
 
     imu = robot.getDevice(IMU_NAME)
-    imu.enable(1000/MOTION_CAPTURE_RATE)
+    imu.enable(int(1000/MOTION_CAPTURE_RATE))
 
     try:
         display = robot.getDevice(DISPLAY_NAME)
@@ -228,7 +234,156 @@ def main(filename):
                  head_kp=0.03, head_ki=0.0, head_kd=0.0)
     
 
-    navigation.state = STATE_IDLE
+    nav_shared_state["state"] = STATE_IDLE
+    dt = 1.0 / CONTROL_RATE
+
+    sp_xm = None
+    sp_ym = None
+
+    latency_buffer = []
+
+    while robot.step(int(1000*dt)) != -1:
+        # ========== "Motion capture": get robot pose from Webots ==========
+        gps_vals = gps.getValues()        # [x, y, z] with y up
+        imu_rpy = imu.getRollPitchYaw()   # [roll, pitch, yaw]
+
+        # Map plane coordinates: world x,z as planar x,y
+        x_world = gps_vals[0]
+        y_world = gps_vals[2]
+        z_world = gps_vals[1]  # vertical, if you need it
+
+        roll = imu_rpy[0]
+        pitch = imu_rpy[1]
+        yaw = imu_rpy[2]
+
+        yaw_deg = math.degrees(yaw)
+        
+        state = mouse.getState()
+        if state.left:  # left mouse button pressed this step
+            wx = state.x  # world X
+            wy = state.y  # world Y
+            wz = state.z  # world Z (height)
+
+            # Ignore invalid picks (e.g., if mouse is not over the 3D scene)
+            if not (math.isnan(wx) or math.isnan(wy) or math.isnan(wz)):
+                # For a flat world, you usually navigate in the ground plane (x, y)
+                sp_xm = wx
+                sp_ym = wy
+                nav_shared_state["state"] = STATE_DRIVING
+            print(f"New waypoint from mouse: x={wx:.3f}, y={wy:.3f}, z={wz:.3f}")
+            marker_translation.setSFVec3f([wx, wy, 0.002])
+        if sp_xm is not None:
+            # Compute relative quantities to current waypoint
+            rel_x = sp_xm - x_world
+            rel_y = sp_ym - y_world
+
+            target_yaw = math.degrees(math.atan2(rel_y, rel_x))
+            rel_yaw = yaw_deg - target_yaw
+            rel_yaw = (rel_yaw + 180.0) % 360.0 - 180.0  # normalize to [-180, 180]
+
+            shared_state['x'] = rel_x
+            shared_state['y'] = rel_y
+            shared_state['yaw'] = rel_yaw
+            navigation.update(dt=dt, is_stop=True)
+
+        #send bluetooth command
+        latest_cmd = None
+        while not command_queue.empty(): #flush buffer
+            latest_cmd = command_queue.get()
+        if latest_cmd is not None:
+            latency_buffer.append(latest_cmd)
+
+        # Apply command after BLE_LATENCY_STEPS steps
+        if len(latency_buffer) > BLE_LATENCY_STEPS:
+            left_power, right_power = latency_buffer.pop(0)
+        else:
+            left_power, right_power = 0.0, 0.0
+
+        # Convert normalized [-1, 1] power to wheel velocities
+        left_motor.setVelocity(left_power * MAX_WHEEL_SPEED)
+        right_motor.setVelocity(right_power * MAX_WHEEL_SPEED)
+
+        left_motor.setVelocity(left_power * MAX_WHEEL_SPEED)
+        right_motor.setVelocity(right_power * MAX_WHEEL_SPEED)
+
+        if display is not None:
+            w = display.getWidth()
+            h = display.getHeight()
+            display.setColor(0xFFFFFF)
+            display.fillRectangle(0, 0, w, h)
+            display.setColor(0x000000)
+            text1 = f"x={x_world:.3f}, y={y_world:.3f}, z={z_world:.3f}"
+            text2 = f"roll={math.degrees(roll):.1f}, pitch={math.degrees(pitch):.1f}, yaw={yaw_deg:.1f}"
+            text3 = f"left_motor={(left_power * MAX_WHEEL_SPEED):.3f}, right_motor={(right_power * MAX_WHEEL_SPEED):.3f}"
+            display.drawText(text1, 2, 2)
+            display.drawText(text2, 2, 18)
+            display.drawText(text3, 2, 34)
+
+        state = nav_shared_state['state']
+        if state == STATE_ARRIVED:
+            nav_shared_state['state'] = STATE_IDLE
+            navigation.stop_motors()
+            sp_xm = None
+            sp_ym = None
+            print("All waypoints completed.")
+            break
+
+def waypoint_file_main(filename):
+    robot = Supervisor()
+    #get devices for simulating motion capture
+    gps = robot.getDevice(GPS_NAME)
+    mouse = robot.getMouse()
+    mouse.enable(int(1000//MOTION_CAPTURE_RATE))
+    mouse.enable3dPosition()
+
+    gps.enable(int(1000//MOTION_CAPTURE_RATE))
+
+    imu = robot.getDevice(IMU_NAME)
+    imu.enable(int(1000//MOTION_CAPTURE_RATE))
+
+    try:
+        display = robot.getDevice(DISPLAY_NAME)
+    except Exception:
+        display = None
+
+    left_motor = robot.getDevice(LEFT_MOTOR_NAME)
+    right_motor = robot.getDevice(RIGHT_MOTOR_NAME)
+
+    left_motor.setPosition(float('inf'))
+    right_motor.setPosition(float('inf'))
+    left_motor.setVelocity(0.0)
+    right_motor.setVelocity(0.0)
+
+    robot_node = robot.getFromDef(ROBOT_DEF_NAME)
+    if robot_node is None:
+        print(f"[WARN] Could not find robot with DEF {ROBOT_DEF_NAME}; teleport will not work.")
+    else:
+        translation_field = robot_node.getField('translation')
+        rotation_field = robot_node.getField('rotation')
+
+    # ========== Shared state & controller ==========
+    shared_state = {
+        'x': 0.0,
+        'y': 0.0,
+        'yaw': 0.0,   # relative yaw to target
+        'tracking': False,
+        'status': 'Initializing',
+    }
+
+    nav_shared_state = {
+        'state': STATE_IDLE
+    }
+
+    command_queue = Queue()
+    navigation = NavigationController(shared_state, nav_shared_state, command_queue,
+                 max_vel=0.2,
+                 max_rot=0.1,
+                 v_cruise=0.25,
+                 dist_kp=0.9, dist_ki=0.0, dist_kd=0.01,
+                 head_kp=0.03, head_ki=0.0, head_kd=0.0)
+    
+
+    nav_shared_state["state"] = STATE_IDLE
     dt = 1.0 / CONTROL_RATE
     with open(filename, "r") as f:
         cfg = yaml.safe_load(f)
@@ -273,7 +428,7 @@ def main(filename):
     set_waypoint(1 if len(waypoints) > 1 else 0)
     latency_buffer = []
 
-    while robot.step(1000*dt) != -1:
+    while robot.step(int(1000*dt)) != -1:
         # ========== "Motion capture": get robot pose from Webots ==========
         gps_vals = gps.getValues()        # [x, y, z] with y up
         imu_rpy = imu.getRollPitchYaw()   # [roll, pitch, yaw]
@@ -300,19 +455,6 @@ def main(filename):
         shared_state['x'] = rel_x
         shared_state['y'] = rel_y
         shared_state['yaw'] = rel_yaw
-
-        if display is not None:
-            w = display.getWidth()
-            h = display.getHeight()
-            display.setColor(0xFFFFFF)
-            display.fillRectangle(0, 0, w, h)
-            display.setColor(0x000000)
-            text1 = f"x={x_world:.3f}, y={y_world:.3f}, z={z_world:.3f}"
-            text2 = f"roll={math.degrees(roll):.1f}, pitch={math.degrees(pitch):.1f}, yaw={yaw_deg:.1f}"
-            text3 = f"rel_x={rel_x:.3f}, rel_y={rel_y:.3f}, rel_yaw={rel_yaw:.1f}"
-            display.drawText(text1, 2, 2)
-            display.drawText(text2, 2, 18)
-            display.drawText(text3, 2, 34)
         
         current_wp = waypoints[wp_idx]
         navigation.update(dt=dt, is_stop=current_wp.get("stop", True))
@@ -329,15 +471,23 @@ def main(filename):
             left_power, right_power = latency_buffer.pop(0)
         else:
             left_power, right_power = 0.0, 0.0
-        # Apply command after BLE_LATENCY_STEPS steps
-        if len(latency_buffer) > BLE_LATENCY_STEPS:
-            left_power, right_power = latency_buffer.pop(0)
-        else:
-            left_power, right_power = 0.0, 0.0
 
         # Convert normalized [-1, 1] power to wheel velocities
         left_motor.setVelocity(left_power * MAX_WHEEL_SPEED)
         right_motor.setVelocity(right_power * MAX_WHEEL_SPEED)
+
+        if display is not None:
+            w = display.getWidth()
+            h = display.getHeight()
+            display.setColor(0xFFFFFF)
+            display.fillRectangle(0, 0, w, h)
+            display.setColor(0x000000)
+            text1 = f"x={x_world:.3f}, y={y_world:.3f}, z={z_world:.3f}"
+            text2 = f"roll={math.degrees(roll):.1f}, pitch={math.degrees(pitch):.1f}, yaw={yaw_deg:.1f}"
+            text3 = f"left_motor={(left_power * MAX_WHEEL_SPEED):.3f}, right_motor={(right_power * MAX_WHEEL_SPEED):.3f}"
+            display.drawText(text1, 2, 2)
+            display.drawText(text2, 2, 18)
+            display.drawText(text3, 2, 34)
 
         state = nav_shared_state['state']
         if state == STATE_ARRIVED:
@@ -358,4 +508,4 @@ def main(filename):
 
 
 if __name__ == '__main__':
-    main(filename=WAYPOINT_FILE)
+    main()

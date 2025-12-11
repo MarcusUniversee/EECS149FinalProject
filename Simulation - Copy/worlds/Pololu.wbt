@@ -24,8 +24,8 @@ TexturedBackground {
 TexturedBackgroundLight {
 }
 Viewpoint {
-  orientation -0.2607751354996161 0.21295658304832096 0.9416187245597554 1.9303222977511383
-  position 0.04679775880281367 -0.40514321266925507 0.6151803099350407
+  orientation -0.06916053678155334 0.19066953649016896 0.9792149651668481 1.1849114539041599
+  position -0.7826274762082587 -0.6442941205430126 0.3385178633892179
 }
 TexturedBackground {
 }
@@ -35,10 +35,39 @@ TexturedBackgroundLight {
 RectangleArena {
   floorSize 3 3
 }
-Robot {
-  translation -0.3875756486717132 0.24695899867133392 0.10891804869250928
-  rotation 0.003208374571936722 -0.1766312421146376 0.9842718682567568 -3.1246035205407403
+
+DEF WAYPOINT_MARKER Solid {
+  translation 0 0 0.002
   children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 0 0    # red
+        roughness 1
+        metalness 0
+      }
+      geometry Cylinder {
+        radius 0.03
+        height 0.002
+      }
+    }
+  ]
+  boundingObject NULL
+  physics NULL
+}
+
+DEF POLULU_ROBOT Robot {
+  translation -0.3883956456954819 0.31908081080525047 0.13402602754690568
+  rotation -0.003925631041359226 -0.18544216069669694 0.9826473398208878 -3.122877257747942
+  children [
+    Display {
+      width 230
+      height 48
+    }
+    InertialUnit {
+      name "imu"
+    }
+    GPS {
+    }
     Shape {
       appearance PBRAppearance {
         roughness 1
@@ -46,7 +75,7 @@ Robot {
       }
       geometry Mesh {
         url [
-          "../../../Downloads/bodywithoutball1.obj"
+          "../Models/bodywithoutcaster.obj"
         ]
       }
       castShadows FALSE
@@ -54,20 +83,20 @@ Robot {
     }
     BallJoint {
       jointParameters BallJointParameters {
-        position -1458.9467289025101
+        position -1476.4283418183486
         anchor 0 0.0404 -0.0096
       }
       jointParameters2 JointParameters {
-        position 26.42817227555493
+        position 27.0294292437525
         axis 1 0 0
       }
       jointParameters3 JointParameters {
-        position -111.31323029217353
+        position -105.98317909389652
         axis 0 1 0
       }
       endPoint Solid {
-        translation -0.02057015397755224 0.008980362616282433 -0.02710106093946367
-        rotation -0.21559670705072154 -0.962755708789262 -0.16315485007369915 2.823040010006451
+        translation -0.033044191917233345 0.040784567584316866 0.015783488736276913
+        rotation -0.6758547702258138 -0.6679504185036306 0.31154866069979675 2.5655596920780614
         children [
           Shape {
             appearance PBRAppearance {
@@ -76,7 +105,7 @@ Robot {
             }
             geometry Mesh {
               url [
-                "../../../Downloads/ballonly.obj"
+                "../Models/caster.obj"
               ]
             }
             castShadows FALSE
@@ -95,22 +124,23 @@ Robot {
         }
         physics Physics {
         }
-        linearVelocity -0.006212531199839701 0.08511075044429353 0.030276715872854878
-        angularVelocity -14.647558468081952 -8.763500348381449 22.315448739290602
+        linearVelocity -0.02862053810432463 0.06118980088731846 0.021143257506382372
+        angularVelocity 13.417977348489757 -16.995544131752467 35.363392576633395
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 1936.8559318140105
+        position 1941.6457170207536
       }
       device [
         RotationalMotor {
           name "LeftMotor"
+          maxVelocity 75.4
         }
       ]
       endPoint Solid {
-        translation 0.04149947459869663 -2.6939529890690863e-05 -0.0003701488222285724
-        rotation -0.6318609331931567 0.4502175712489334 0.6309167137134541 3.997055489066442
+        translation 0.04149947459869662 -0.0003711236842286068 -1.7606454827978713e-06
+        rotation 0.19500420226367673 -0.9604037383276315 -0.19899251369289625 1.6048922085608361
         children [
           DEF wheel Shape {
             appearance PBRAppearance {
@@ -130,22 +160,23 @@ Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity -0.0008658294374513257 0.07841501289495954 0.02744565061988205
-        angularVelocity -5.189767731025456 -0.05177787308371182 -0.015832787339386274
+        linearVelocity -0.0008290429626411588 0.07469476094628201 0.025740443553725394
+        angularVelocity -4.92626997490046 -0.04780504171716519 -0.02003294018136278
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 2550.6644681864477
+        position 2555.454253392253
       }
       device [
         DEF RightMotor RotationalMotor {
           name "RightMotor"
+          maxVelocity 75.4
         }
       ]
       endPoint Solid {
-        translation -0.04149868078943599 0.00040002782509042985 0.0003381404312886988
-        rotation 0.15208640817514935 -0.976492647682994 0.1527476136292729 4.69381011527047
+        translation -0.04149868078943599 0.0003680579194722509 -0.0003726856316420649
+        rotation -0.6186883100557193 0.4872094568558391 -0.616321117722439 2.2294888045135455
         children [
           USE wheel
         ]
@@ -153,8 +184,8 @@ Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity -0.0008677736191881509 0.07852271329377003 0.027634827218354724
-        angularVelocity -5.189767742624676 -0.05177807274922185 -0.01583303625318806
+        linearVelocity -0.0008271210811611586 0.07440897299933716 0.025676830216794837
+        angularVelocity -4.926269963873789 -0.04780527913746469 -0.020033192830910963
       }
     }
   ]
@@ -174,9 +205,10 @@ Robot {
       0 0 0
     ]
   }
-  controller "my_controller"
-  linearVelocity -0.0008695677190362949 0.07900343070775613 0.02668285986233819
-  angularVelocity -0.1906283988434661 0.04015598597810488 -0.028849432741419698
+  supervisor TRUE
+  controller "autonomous_navigation"
+  linearVelocity -0.0008381259721683106 0.07539901972560471 0.02615773417009996
+  angularVelocity 0.0727199594797906 0.03396303943331407 0.038531121912268984
 }
 Solid {
   translation -0.34 0.82 4.02622e-06
@@ -190,7 +222,7 @@ Solid {
       }
       geometry Mesh {
         url [
-          "../../../Downloads/ramp.obj"
+          "../Models/ramp.obj"
         ]
       }
     }

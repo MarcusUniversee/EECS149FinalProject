@@ -18,6 +18,7 @@ RIGHT_MOTOR_NAME = "RightMotor"
 GPS_NAME = "gps"
 IMU_NAME = "imu"
 DISPLAY_NAME = "display"
+FILENAME = None # "test.yaml"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
@@ -53,8 +54,6 @@ MIN_ROT_SPEED = 0.05
 
 MAX_WHEEL_SPEED = 75.4
 BLE_LATENCY_STEPS = 2
-
-WAYPOINT_FILE = "waypoint.yml"
 # =======================================================
 class NavigationController:
     def __init__(self, 
@@ -269,6 +268,7 @@ def main(filename=None):
             sp_xm = float(wp["x"])
             sp_ym = float(wp["y"])
             print(f"Waypoint {wp_idx} (from file):", sp_xm, sp_ym)
+            marker_translation.setSFVec3f([sp_xm, sp_ym, 0.002])
             nav_shared_state['state'] = STATE_DRIVING
             navigation.set_is_final(wp_idx + 1 == len(waypoints))
             navigation.reset()
@@ -286,7 +286,7 @@ def main(filename=None):
 
             # Set yaw to 0 initially (axis Y)
             rotation_field.setSFRotation([0.0, 1.0, 0.0, 0.0])
-            robot.step(1000 * dt)  # apply teleport
+            robot.step(int(1000 * dt))  # apply teleport
             print(f"Teleported robot to starting waypoint: ({start_x}, {start_y})")
 
         time.sleep(0.5)
@@ -332,7 +332,9 @@ def main(filename=None):
                 rel_y = sp_ym - y_world
 
                 target_yaw = math.degrees(math.atan2(rel_y, rel_x))
+
                 rel_yaw = target_yaw - yaw_deg #FLIPPED FROM OROGINAL SCRIPT
+
                 rel_yaw = (rel_yaw + 180.0) % 360.0 - 180.0  # normalize to [-180, 180]
 
                 shared_state['x'] = rel_x
@@ -345,7 +347,9 @@ def main(filename=None):
             rel_y = sp_ym - y_world
 
             target_yaw = math.degrees(math.atan2(rel_y, rel_x))
-            rel_yaw = yaw_deg - target_yaw
+
+            rel_yaw = target_yaw - yaw_deg #FLIPPED FROM ORIGINAL_SCRIPT 
+
             rel_yaw = (rel_yaw + 180.0) % 360.0 - 180.0  # normalize to [-180, 180]
 
             shared_state['x'] = rel_x
@@ -415,4 +419,4 @@ def main(filename=None):
 
 
 if __name__ == '__main__':
-    main()
+    main(FILENAME)

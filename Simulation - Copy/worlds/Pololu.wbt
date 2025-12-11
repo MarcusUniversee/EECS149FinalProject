@@ -44,10 +44,12 @@ DEF WAYPOINT_MARKER Solid {
         baseColor 1 0 0    # red
         roughness 1
         metalness 0
+        transparency 0.8
+        emissiveColor 1 0 0
       }
       geometry Cylinder {
         radius 0.03
-        height 0.002
+        height 1
       }
     }
   ]
@@ -61,7 +63,7 @@ DEF POLULU_ROBOT Robot {
   children [
     Display {
       width 230
-      height 48
+      height 64
     }
     InertialUnit {
       name "imu"

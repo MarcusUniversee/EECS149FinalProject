@@ -17,8 +17,6 @@ or if another python version is needed, find the path of your python installatio
 
 5. `python autonomous_navigation.py -f [WAYPOINT YAML] -l [LOG FILE]` or `python autonomous_navigation.py` for just mouse GUI navigation
 
-For now, keep WAYPOINT YAML empty, since this is not implemented yet
-
 ## Setup for deploying code onto polulu
 
 1. Make sure you are on WSL outside the repo. OR use a linux machine/VM

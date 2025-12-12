@@ -19,8 +19,8 @@ RIGHT_MOTOR_NAME = "RightMotor"
 GPS_NAME = "gps"
 IMU_NAME = "imu"
 DISPLAY_NAME = "display"
-FILENAME = "test.yaml"
-LOGFILE = "test.csv"
+FILENAME = None#"test.yaml"
+LOGFILE = None#"test.csv"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
@@ -166,7 +166,7 @@ class NavigationController:
         v_cmd = min(v_cmd, self.max_vel)
 
         #multiwaypoint
-        if not is_stop and d_dir < HEADING_THRESHOLD*2:
+        if not is_stop and abs(d_dir_deg) < HEADING_THRESHOLD*2:
             v_cmd = max(v_cmd, self.v_cruise)
         
         #send motor commands

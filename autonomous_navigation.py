@@ -20,8 +20,8 @@ parser.add_argument("-l", default=None, help="Filepath to log file")
 
 # ==================== CONFIGURATION ====================
 # Camera settings
-CAMERA_ID = 1
-IMAGE_RES = (1920, 1080)
+CAMERA_ID = 0
+IMAGE_RES = (1280, 720)
 CALIBRATION_FILE = 'camera_calibration.yaml'
 
 # AprilTag settings
@@ -98,7 +98,7 @@ def meters_to_px(X, Y, Z, K):
 
 def initialize_camera(camera_id, resolution):
     """Initialize camera."""
-    cap = cv2.VideoCapture(camera_id)
+    cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
     
     if not cap.isOpened():
         cap = cv2.VideoCapture(camera_id)
@@ -111,7 +111,7 @@ def initialize_camera(camera_id, resolution):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
     cap.set(cv2.CAP_PROP_FPS, 60)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1) #0.25 fo DSHOW
     cap.set(cv2.CAP_PROP_EXPOSURE, -7)
     
     print(f"✓ Camera initialized: {resolution[0]}x{resolution[1]}")
@@ -176,7 +176,7 @@ class MotionCaptureThread(threading.Thread):
         self.detector = Detector(
             families=TAG_FAMILY,
             nthreads=4,
-            quad_decimate=2.0,
+            quad_decimate=1.0,
             quad_sigma=0.0,
             refine_edges=1,
             decode_sharpening=0.25,
@@ -202,140 +202,155 @@ class MotionCaptureThread(threading.Thread):
     def run(self):
         """Main tracking loop - runs continuously at high speed."""
         self.running = True
-        
-        while self.running:
-            # Capture frame
-            ret, frame = self.cap.read()
-            if not ret:
-                continue
-            
-            # Convert to grayscale
-            frame[frame < 50] = 0
-            frame[frame > 245] = 255
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            #gray = cv2.GaussianBlur(gray, (3, 3), 0)
-            
-            
-            # Detect tags
-            detections = self.detector.detect(
-                gray,
-                estimate_tag_pose=True,
-                camera_params=[
-                    self.camera_matrix[0, 0],
-                    self.camera_matrix[1, 1],
-                    self.camera_matrix[0, 2],
-                    self.camera_matrix[1, 2],
-                ],
-                tag_size=TAG_SIZE
-            )
-            cur_time = time.perf_counter() - self.start_time
-            
-            # Filter by quality
-            #detections = [d for d in detections if d.decision_margin >= MIN_DECISION_MARGIN]
-            cv2.rectangle(
-                frame,
-                (self.sp_x - BOX_SIZE, self.sp_y - BOX_SIZE),
-                (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
-                (0, 255, 0), 2
-            )
-            if self.heading:
-                L = 80
-                ex = int(self.sp_x + L * math.cos(math.radians(self.heading)))
-                ey = int(self.sp_y + L * math.sin(math.radians(self.heading)))
-                cv2.arrowedLine(
-                    frame,
-                    (self.sp_x, self.sp_y),
-                    (ex, ey),
-                    (255, 0, 255),   # red arrow
-                    3,
-                    tipLength=0.3
+        try:
+            while self.running:
+                # Capture frame
+                ret, frame = self.cap.read()
+                if not ret:
+                    continue
+                
+                # Convert to grayscale
+                frame[frame < 50] = 0
+                frame[frame > 245] = 255
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                #gray = cv2.GaussianBlur(gray, (3, 3), 0)
+                
+                
+                # Detect tags
+                detections = self.detector.detect(
+                    gray,
+                    estimate_tag_pose=True,
+                    camera_params=[
+                        self.camera_matrix[0, 0],
+                        self.camera_matrix[1, 1],
+                        self.camera_matrix[0, 2],
+                        self.camera_matrix[1, 2],
+                    ],
+                    tag_size=TAG_SIZE
                 )
-            if len(detections) > 0:
-                robot_detection = detections[0]
-                # Get pose
-                x = robot_detection.pose_t[0, 0]
-                y = robot_detection.pose_t[1, 0]
-                z = robot_detection.pose_t[2, 0]
+                cur_time = time.perf_counter() - self.start_time
                 
-                roll, pitch, yaw = rotation_matrix_to_euler_angles(robot_detection.pose_R)
-                current = {
-                    "t": cur_time,
-                    "x": x,
-                    "y": y,
-                    "z": z,
-                    "roll": roll,
-                    "pitch": pitch,
-                    "yaw": yaw
-                }
-                self.log.append(current)
-                self.current = current
-                
-                if self.filename is None:
-                    self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.camera_matrix)
+                # Filter by quality
+                #detections = [d for d in detections if d.decision_margin >= MIN_DECISION_MARGIN]
+                cv2.rectangle(
+                    frame,
+                    (self.sp_x - BOX_SIZE, self.sp_y - BOX_SIZE),
+                    (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
+                    (0, 255, 0), 2
+                )
+                if self.heading:
+                    L = 80
+                    ex = int(self.sp_x + L * math.cos(math.radians(self.heading)))
+                    ey = int(self.sp_y + L * math.sin(math.radians(self.heading)))
+                    cv2.arrowedLine(
+                        frame,
+                        (self.sp_x, self.sp_y),
+                        (ex, ey),
+                        (255, 0, 255),   # red arrow
+                        3,
+                        tipLength=0.3
+                    )
+                if len(detections) > 0:
+                    robot_detection = detections[0]
+                    # Get pose
+                    x = robot_detection.pose_t[0, 0]
+                    y = robot_detection.pose_t[1, 0]
+                    z = robot_detection.pose_t[2, 0]
+                    
+                    roll, pitch, yaw = rotation_matrix_to_euler_angles(robot_detection.pose_R)
+                    current = {
+                        "t": cur_time,
+                        "x": x,
+                        "y": y,
+                        "z": z,
+                        "roll": roll,
+                        "pitch": pitch,
+                        "yaw": yaw
+                    }
+                    self.log.append(current)
+                    self.current = current
+                    
+                    if self.filename is None:
+                        self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.camera_matrix)
+                    else:
+                        x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
+                        self.sp_x = int(round(x_px))
+                        self.sp_y = int(round(y_px))
+                    
+                    #draw on gui
+                    cv2.putText(
+                        frame,
+                        f"x: {x:.4f}, y: {y:.4f}, z: {z:.4f}, yaw: {yaw:.1f} deg",
+                        (20, 40),                      # position (x, y)
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.0,                           # font scale
+                        (0, 255, 0),                   # color (B, G, R)
+                        2,                             # thickness
+                        cv2.LINE_AA
+                    )
+                    corners = robot_detection.corners
+                    cx = int(np.mean(corners[:, 0]))
+                    cy = int(np.mean(corners[:, 1]))
+                    angle_rad = math.radians(yaw)
+                    L = 80
+                    ex = int(cx + L * math.cos(angle_rad))
+                    ey = int(cy + L * math.sin(angle_rad))
+                    cv2.arrowedLine(
+                        frame,
+                        (cx, cy),
+                        (ex, ey),
+                        (0, 0, 255),   # red arrow
+                        3,
+                        tipLength=0.3
+                    )
+                    corners = corners.astype(int)
+                    for i in range(4):
+                        cv2.line(frame, tuple(corners[i]), tuple(corners[(i+1) % 4]), (255, 0, 0), 2)
+                    # Update tracker
+                    rel_x = self.sp_xm - x
+                    rel_y = self.sp_ym - y
+                    target_yaw = math.degrees(math.atan2(rel_y, rel_x))
+                    rel_yaw = yaw - target_yaw # positive means turn left, negative means turn right
+                    rel_yaw = (rel_yaw + 180) % 360 - 180
+                    if self.heading is not None:
+                        cv2.putText(
+                            frame,
+                            f"Desired:  x: {self.sp_xm:.4f}, y: {self.sp_ym:.4f}, yaw: {self.heading:.1f} deg",
+                            (20, 80),                      # position (x, y)
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1.0,                           # font scale
+                            (0, 0, 255),                   # color (B, G, R)
+                            2,                             # thickness
+                            cv2.LINE_AA
+                        )
+                    else:
+
+                        cv2.putText(
+                            frame,
+                            f"Desired:  x: {self.sp_xm:.4f}, y: {self.sp_ym:.4f}, yaw: {target_yaw:.1f} deg",
+                            (20, 80),                      # position (x, y)
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1.0,                           # font scale
+                            (0, 0, 255),                   # color (B, G, R)
+                            2,                             # thickness
+                            cv2.LINE_AA
+                        )
+                    
+                    
+                    # Update shared state (thread-safe with lock)
+                    with self.shared_state['lock']:
+                        self.shared_state['x'] = rel_x
+                        self.shared_state['y'] = rel_y
+                        self.shared_state['yaw'] = rel_yaw
+                        self.shared_state['tracking'] = True
+                        self.shared_state['frame'] = frame  # Store frame for display
                 else:
-                    x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
-                    self.sp_x = int(round(x_px))
-                    self.sp_y = int(round(y_px))
-                
-                #draw on gui
-                cv2.putText(
-                    frame,
-                    f"x: {x:.4f}, y: {y:.4f}, z: {z:.4f}, yaw: {yaw:.1f} deg",
-                    (20, 40),                      # position (x, y)
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1.0,                           # font scale
-                    (0, 255, 0),                   # color (B, G, R)
-                    2,                             # thickness
-                    cv2.LINE_AA
-                )
-                corners = robot_detection.corners
-                cx = int(np.mean(corners[:, 0]))
-                cy = int(np.mean(corners[:, 1]))
-                angle_rad = math.radians(yaw)
-                L = 80
-                ex = int(cx + L * math.cos(angle_rad))
-                ey = int(cy + L * math.sin(angle_rad))
-                cv2.arrowedLine(
-                    frame,
-                    (cx, cy),
-                    (ex, ey),
-                    (0, 0, 255),   # red arrow
-                    3,
-                    tipLength=0.3
-                )
-                corners = corners.astype(int)
-                for i in range(4):
-                    cv2.line(frame, tuple(corners[i]), tuple(corners[(i+1) % 4]), (255, 0, 0), 2)
-                # Update tracker
-                rel_x = self.sp_xm - x
-                rel_y = self.sp_ym - y
-                target_yaw = math.degrees(math.atan2(rel_y, rel_x))
-                rel_yaw = yaw - target_yaw # positive means turn left, negative means turn right
-                rel_yaw = (rel_yaw + 180) % 360 - 180
-                cv2.putText(
-                    frame,
-                    f"Desired:  x: {self.sp_xm:.4f}, y: {self.sp_ym:.4f}, yaw: {target_yaw:.1f} deg",
-                    (20, 80),                      # position (x, y)
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1.0,                           # font scale
-                    (0, 0, 255),                   # color (B, G, R)
-                    2,                             # thickness
-                    cv2.LINE_AA
-                )
-                
-                
-                # Update shared state (thread-safe with lock)
-                with self.shared_state['lock']:
-                    self.shared_state['x'] = rel_x
-                    self.shared_state['y'] = rel_y
-                    self.shared_state['yaw'] = rel_yaw
-                    self.shared_state['tracking'] = True
-                    self.shared_state['frame'] = frame  # Store frame for display
-            else:
-                # Lost tracking
-                with self.shared_state['lock']:
-                    self.shared_state['tracking'] = False
-                    self.shared_state['frame'] = frame # Store frame even when not tracking
+                    # Lost tracking
+                    with self.shared_state['lock']:
+                        self.shared_state['tracking'] = False
+                        self.shared_state['frame'] = frame # Store frame even when not tracking
+        except Exception as e:
+            print(repr(e))
     
     def set_waypoint(self, x, y, heading=None):
         self.sp_xm, self.sp_ym= float(x), float(y)
@@ -386,20 +401,21 @@ class BluetoothControlThread(threading.Thread):
                 with self.shared_state['lock']:
                     self.shared_state['bt_connected'] = True
                 
-                # Process commands from queue
+                # Process commands from queue    
+                latest_cmd = None
                 while self.running:
                     try:
-                        # Check for new command (non-blocking)
-                        if not self.command_queue.empty():
-                            left_speed, right_speed = self.command_queue.get_nowait()
+                        while not self.command_queue.empty():
+                            latest_cmd = self.command_queue.get()
+                        
+                        if latest_cmd is not None:
+                            left_speed, right_speed = latest_cmd                            
                             
-                            # Send command to robot
                             command = f"{left_speed:.2f} {right_speed:.2f}\n"
                             await client.write_gatt_char(BT_CHAR_UUID, command.encode(), response=False)
-                        
+                    
                         # Small delay to prevent CPU spinning
                         await asyncio.sleep(0.02)
-                        
                     except Exception as e:
                         print(f"Command send error: {e}")
         
@@ -560,8 +576,8 @@ class NavigationController:
 def main(filename=None, logfile=None):
     """Main entry point."""
     shared_state = {
-            'x': 0.0,
-            'y': 0.0,
+            'x': 10.0,
+            'y': 10.0,
             'yaw': 0.0,
             'tracking': False,
             'bt_connected': False,
@@ -572,6 +588,7 @@ def main(filename=None, logfile=None):
     
     nav_shared_state = {
         'state': STATE_IDLE,
+        'name': "",
         'lock': threading.Lock()
     }
 
@@ -679,6 +696,7 @@ def main(filename=None, logfile=None):
         wp_idx = 0
         wp = waypoints[wp_idx]
         motion_capture.set_waypoint(wp["x"], wp["y"], heading=wp["heading"])
+        print(wp["name"])
         print('Waiting for robot to be placed at starting waypoint')
         try:
             count = CONTROL_RATE * 2 #must be at starting waypoint for at least 2 seconds
@@ -687,6 +705,9 @@ def main(filename=None, logfile=None):
                     rel_x = shared_state['x']
                     rel_y = shared_state['y']
                     rel_yaw = shared_state['yaw']
+                    frame = shared_state.get('frame')
+                if frame is not None:
+                    cv2.imshow(WINDOW, frame)
                 if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD and rel_yaw < HEADING_THRESHOLD:
                     count -= 1
                     if count == 0:
@@ -694,6 +715,11 @@ def main(filename=None, logfile=None):
                         break
                 else:
                     count = CONTROL_RATE * 2
+                if cv2.waitKey(1) == 27:  # ESC key
+                    navigation.stop_motors()
+                    motion_capture.stop()
+                    bluetooth_control.stop()
+                    raise KeyboardInterrupt
                 time.sleep(dt)
         except KeyboardInterrupt:
             motion_capture.stop()
@@ -707,10 +733,15 @@ def main(filename=None, logfile=None):
         navigation.set_is_final(wp_idx + 1 == len(waypoints))
         try:
             while True:
+                with shared_state['lock']:
+                    frame = shared_state.get('frame')
+                if frame is not None:
+                    cv2.imshow(WINDOW, frame)
                 navigation.update(dt=dt, is_stop=wp.get("stop", True))
                 # check to advance to next waypoint or not
                 with nav_shared_state['lock']:
                     state = nav_shared_state['state']
+                print(state)
                 if state == STATE_ARRIVED:
                     if wp_idx + 1 < len(waypoints):
                         wp_idx += 1

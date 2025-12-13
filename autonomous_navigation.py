@@ -701,12 +701,14 @@ def main(filename=None, logfile=None):
                         
                         # Check for ESC key
                         if cv2.waitKey(1) == 27:  # ESC key
+                            motion_capture.start_log = False
                             navigation.stop_motors()
                             motion_capture.stop()
                             bluetooth_control.stop()
                             raise KeyboardInterrupt
                 
                 elif key == 27:  # ESC key
+                    motion_capture.start_log = False
                     navigation.stop_motors()
                     motion_capture.stop()
                     bluetooth_control.stop()
@@ -817,6 +819,7 @@ def main(filename=None, logfile=None):
                         print("All waypoints completed.")
                         break
                 elif state == STATE_FINISHED:
+                    motion_capture.start_log = False
                     navigation.stop_motors()
                     print("All waypoints completed.")
                     break

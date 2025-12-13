@@ -43,14 +43,14 @@ MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 
 MAX_VEL = 0.2
-MAX_ROT = 0.1
+MAX_ROT = 0.5
 CRUISING_SPEED = 0.2
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
-HEAD_KP = 0.03
-HEAD_KI = 0.0
-HEAD_KD = 0.0
+HEAD_KP = 0.043
+HEAD_KI = 0.0003
+HEAD_KD = 0.0085
 
 
 # Navigation states
@@ -61,7 +61,7 @@ STATE_FINISHED = 3
 BOX_SIZE  = 30
 
 MIN_LIN_SPEED = 0.09
-MIN_ROT_SPEED = 0.05
+MIN_ROT_SPEED = 0.018
 # =======================================================
 
 def load_camera_calibration(path):
@@ -164,6 +164,8 @@ class MotionCaptureThread(threading.Thread):
         self.camera_matrix = None
         self.filename = filename
         self.log = []
+        self.start_log = False
+        self.current = None
         cv2.namedWindow(WINDOW)
         if self.filename is None:
             cv2.setMouseCallback(WINDOW, self.mouse_callback)
@@ -171,9 +173,15 @@ class MotionCaptureThread(threading.Thread):
     def initialize(self):
         """Initialize camera and detector."""
         # Load calibration
-        self.camera_matrix, dist_coeffs = load_camera_calibration(CALIBRATION_FILE)
+        self.camera_matrix, self.dist_coeffs = load_camera_calibration(CALIBRATION_FILE)
         if self.camera_matrix is None:
             return False
+        w, h = IMAGE_RES
+        new_K, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist_coeffs, (w,h),1.0, (w,h))
+        self.new_camera_matrix = new_K
+        self.map1, self.map2 = cv2.initUndistortRectifyMap(
+            self.camera_matrix, self.dist_coeffs, None, new_K, (w, h), cv2.CV_16SC2
+        )
         
         # Initialize camera
         self.cap = initialize_camera(CAMERA_ID, IMAGE_RES)
@@ -218,6 +226,7 @@ class MotionCaptureThread(threading.Thread):
                     continue
                 
                 # Convert to grayscale
+                frame = cv2.remap(frame, self.map1, self.map2, interpolation=cv2.INTER_LINEAR)
                 frame[frame < 50] = 0
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 #gray = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -228,10 +237,10 @@ class MotionCaptureThread(threading.Thread):
                     gray,
                     estimate_tag_pose=True,
                     camera_params=[
-                        self.camera_matrix[0, 0],
-                        self.camera_matrix[1, 1],
-                        self.camera_matrix[0, 2],
-                        self.camera_matrix[1, 2],
+                        self.new_camera_matrix[0, 0],
+                        self.new_camera_matrix[1, 1],
+                        self.new_camera_matrix[0, 2],
+                        self.new_camera_matrix[1, 2],
                     ],
                     tag_size=TAG_SIZE
                 )
@@ -274,7 +283,8 @@ class MotionCaptureThread(threading.Thread):
                         "pitch": pitch,
                         "yaw": yaw
                     }
-                    self.log.append(current)
+                    if self.start_log:
+                        self.log.append(current)
                     self.current = current
                     
                     if self.filename is None:
@@ -283,6 +293,15 @@ class MotionCaptureThread(threading.Thread):
                         x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
                         self.sp_x = int(round(x_px))
                         self.sp_y = int(round(y_px))
+                    try:
+                        cv2.rectangle(
+                            frame,
+                            (self.sp_x - BOX_SIZE, self.sp_y - BOX_SIZE),
+                            (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
+                            (0, 255, 0), 2
+                        )
+                    except Exception as e:
+                        print(repr(e))
                     
                     #draw on gui
                     cv2.putText(
@@ -316,7 +335,11 @@ class MotionCaptureThread(threading.Thread):
                     # Update tracker
                     rel_x = self.sp_xm - x
                     rel_y = self.sp_ym - y
-                    target_yaw = math.degrees(math.atan2(rel_y, rel_x))
+                    #print(self.heading)
+                    if self.heading is None:
+                        target_yaw = math.degrees(math.atan2(rel_y, rel_x))
+                    else: 
+                        target_yaw = self.heading
                     rel_yaw = yaw - target_yaw # positive means turn left, negative means turn right
                     rel_yaw = (rel_yaw + 180) % 360 - 180
                     if self.heading is not None:
@@ -361,7 +384,7 @@ class MotionCaptureThread(threading.Thread):
     
     def set_waypoint(self, x, y, heading=None):
         self.sp_xm, self.sp_ym= float(x), float(y)
-        if heading:
+        if heading is not None:
             self.heading = float(heading)
         else:
             self.heading = None
@@ -448,7 +471,7 @@ class NavigationController:
                  max_rot=0.6,
                  v_cruise=0.6,
                  dist_kp=2.8, dist_ki=0.0, dist_kd=0.1,
-                 head_kp=2.0, head_ki=0.0, head_kd=0.15
+                 head_kp=2.0, head_ki=0.0, head_kd=0.5
                  ):
         """
         Initialize navigation controller.
@@ -555,7 +578,7 @@ class NavigationController:
         v_cmd = min(v_cmd, self.max_vel)
 
         #multiwaypoint
-        if not is_stop and d_dir < HEADING_THRESHOLD*2:
+        if not is_stop and abs(d_dir_deg) < HEADING_THRESHOLD*2:
             v_cmd = max(v_cmd, self.v_cruise)
         
         #send motor commands
@@ -711,11 +734,11 @@ def main(filename=None, logfile=None):
                 with shared_state['lock']:
                     rel_x = shared_state['x']
                     rel_y = shared_state['y']
-                    rel_yaw = shared_state['yaw']
                     frame = shared_state.get('frame')
+                    rel_yaw = shared_state['yaw']
                 if frame is not None:
                     cv2.imshow(WINDOW, frame)
-                if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD and rel_yaw < HEADING_THRESHOLD:
+                if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD and abs(rel_yaw) < HEADING_THRESHOLD:
                     count -= 1
                     if count == 0:
                         print('ROBOT IN CORRECT POSITION')
@@ -738,6 +761,8 @@ def main(filename=None, logfile=None):
         wp = waypoints[wp_idx]
         motion_capture.set_waypoint(wp["x"], wp["y"])
         navigation.set_is_final(wp_idx + 1 == len(waypoints))
+        motion_capture.start_log = True
+        time.sleep(dt)
         try:
             while True:
                 with shared_state['lock']:

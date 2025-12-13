@@ -318,17 +318,6 @@ def main(filename=None, logfile=None):
         yaw_deg = math.degrees(yaw- math.pi/2) #offset due to modeling things
         yaw_deg = (yaw_deg + 180.0) % 360.0 - 180.0
         cur_time = time.perf_counter() - start_time
-        current = {
-            "t": cur_time,
-            "x": x_world,
-            "y": y_world,
-            "z": z_world,
-            "roll": roll,
-            "pitch": pitch,
-            "yaw": yaw
-        }
-
-        log.append(current)
 
         if filename is None:
             state = mouse.getState()
@@ -378,7 +367,19 @@ def main(filename=None, logfile=None):
             
             current_wp = waypoints[wp_idx]
             navigation.update(dt=dt, is_stop=current_wp.get("stop", True))
+        current = {
+            "t": cur_time,
+            "x": x_world,
+            "y": y_world,
+            "z": z_world,
+            "roll": roll,
+            "pitch": pitch,
+            "yaw": yaw,
+            "desired_x": sp_xm if sp_xm is not None else math.nan,
+            "desired_y": sp_ym if sp_ym is not None else math.nan
+        }
 
+        log.append(current)
         #send bluetooth command
         latest_cmd = None
         while not command_queue.empty():

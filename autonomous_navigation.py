@@ -284,18 +284,7 @@ class MotionCaptureThread(threading.Thread):
                     z = robot_detection.pose_t[2, 0]
                     
                     roll, pitch, yaw = rotation_matrix_to_euler_angles(robot_detection.pose_R)
-                    current = {
-                        "t": cur_time,
-                        "x": x,
-                        "y": y,
-                        "z": z,
-                        "roll": roll,
-                        "pitch": pitch,
-                        "yaw": yaw
-                    }
-                    if self.start_log:
-                        self.log.append(current)
-                    self.current = current
+                    
                     
                     if self.filename is None:
                         self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.new_camera_matrix)
@@ -303,6 +292,22 @@ class MotionCaptureThread(threading.Thread):
                         x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
                         self.sp_x = int(round(x_px))
                         self.sp_y = int(round(y_px))
+
+                    current = {
+                        "t": cur_time,
+                        "x": x,
+                        "y": y,
+                        "z": z,
+                        "roll": roll,
+                        "pitch": pitch,
+                        "yaw": yaw,
+                        "desired_x": self.sp_xm,
+                        "desired_y": self.sp_ym
+                    }
+                    if self.start_log:
+                        self.log.append(current)
+                    self.current = current
+
                     try:
                         cv2.rectangle(
                             frame,
@@ -667,6 +672,7 @@ def main(filename=None, logfile=None):
                 # Wait for key press
                 key = cv2.waitKey(1)
                 if key == 13:  # Enter key
+                    motion_capture.start_log = True
                     print("Starting navigation to waypoint...")
                     navigation.reset()  # Reset PID controllers
                     with nav_shared_state['lock']:

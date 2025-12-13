@@ -52,6 +52,8 @@ HEAD_KP = 0.043
 HEAD_KI = 0.0003
 HEAD_KD = 0.0085
 
+#Display parameter for smaller screens
+DISPLAY_SCALE = 0.6
 
 # Navigation states
 STATE_IDLE = 0
@@ -95,6 +97,10 @@ def meters_to_px(X, Y, Z, K):
     x_px = fx * (X / Z) + cx
     y_px = fy * (Y / Z) + cy
     return x_px, y_px
+
+def show_frame(frame):
+    vis = cv2.resize(frame, None, fx=DISPLAY_SCALE, fy=DISPLAY_SCALE, interpolation=cv2.INTER_AREA)
+    cv2.imshow(WINDOW, vis)
 
 def initialize_camera(camera_id, resolution):
     """Initialize camera."""
@@ -211,8 +217,13 @@ class MotionCaptureThread(threading.Thread):
     
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            self.sp_x, self.sp_y = x, y
-            print(f"New waypoint set: ({x}, {y}) - Press Enter to navigate")
+            full_x = int(round(x / DISPLAY_SCALE))
+            full_y = int(round(y / DISPLAY_SCALE))
+
+            full_x = max(0, min(full_x, IMAGE_RES[0] - 1))
+            full_y = max(0, min(full_y, IMAGE_RES[1] - 1))
+            self.sp_x, self.sp_y = full_x, full_y
+            print(f"New waypoint set: ({full_x}, {full_y}) from ({x}, {y}) - Press Enter to navigate")
             # Don't change state here - let main thread control it
     
     def run(self):
@@ -287,7 +298,7 @@ class MotionCaptureThread(threading.Thread):
                     self.current = current
                     
                     if self.filename is None:
-                        self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.camera_matrix)
+                        self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.new_camera_matrix)
                     else:
                         x_px, y_px = meters_to_px(self.sp_xm, self.sp_ym, z, self.camera_matrix)
                         self.sp_x = int(round(x_px))
@@ -651,7 +662,7 @@ def main(filename=None, logfile=None):
                     frame = shared_state.get('frame')
                 
                 if frame is not None:
-                    cv2.imshow(WINDOW, frame)
+                    show_frame(frame)
                 
                 # Wait for key press
                 key = cv2.waitKey(1)
@@ -667,7 +678,7 @@ def main(filename=None, logfile=None):
                         with shared_state['lock']:
                             frame = shared_state.get('frame')
                         if frame is not None:
-                            cv2.imshow(WINDOW, frame)
+                            show_frame(frame)
                         
                         with nav_shared_state['lock']:
                             state = nav_shared_state['state']
@@ -736,7 +747,7 @@ def main(filename=None, logfile=None):
                     frame = shared_state.get('frame')
                     rel_yaw = shared_state['yaw']
                 if frame is not None:
-                    cv2.imshow(WINDOW, frame)
+                    show_frame(frame)
                 if math.hypot(rel_x, rel_y) < TRANSLATIONAL_THRESHOLD and abs(rel_yaw) < HEADING_THRESHOLD:
                     count -= 1
                     if count == 0:
@@ -771,7 +782,7 @@ def main(filename=None, logfile=None):
                 with shared_state['lock']:
                     frame = shared_state.get('frame')
                 if frame is not None:
-                    cv2.imshow(WINDOW, frame)
+                    show_frame(frame)
                 key = cv2.waitKey(1) & 0xFF
                 if key == 27:  # ESC
                     raise KeyboardInterrupt

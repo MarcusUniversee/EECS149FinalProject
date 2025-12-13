@@ -224,7 +224,6 @@ class MotionCaptureThread(threading.Thread):
                 ret, frame = self.cap.read()
                 if not ret:
                     continue
-                
                 # Convert to grayscale
                 frame = cv2.remap(frame, self.map1, self.map2, interpolation=cv2.INTER_LINEAR)
                 frame[frame < 50] = 0
@@ -745,11 +744,15 @@ def main(filename=None, logfile=None):
                         break
                 else:
                     count = CONTROL_RATE * 2
-                if cv2.waitKey(1) == 27:  # ESC key
+                key = cv2.waitKey(1) & 0xFF
+                if key == 27:  # ESC key
                     navigation.stop_motors()
                     motion_capture.stop()
                     bluetooth_control.stop()
                     raise KeyboardInterrupt
+                if key == ord('q'):  # q key
+                    print('SKIP ROBOT STARTING POINT')
+                    break
                 time.sleep(dt)
         except KeyboardInterrupt:
             motion_capture.stop()
@@ -769,10 +772,12 @@ def main(filename=None, logfile=None):
                     frame = shared_state.get('frame')
                 if frame is not None:
                     cv2.imshow(WINDOW, frame)
+                key = cv2.waitKey(1) & 0xFF
+                if key == 27:  # ESC
+                    raise KeyboardInterrupt
                 # check to advance to next waypoint or not
                 with nav_shared_state['lock']:
                     state = nav_shared_state['state']
-                    
                 # print(state)
                 if state == STATE_ARRIVED:
                     if wp_idx + 1 < len(waypoints):

@@ -7,3 +7,5 @@ src-gen/
 include/
 build/
 .vscode/
+__pycache__
+Simulation - Copy/controllers/autonomous_navigation/__pycache__

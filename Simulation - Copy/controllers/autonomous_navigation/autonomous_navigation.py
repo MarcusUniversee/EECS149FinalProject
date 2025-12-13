@@ -31,14 +31,14 @@ CONTROL_RATE = 50  # Hz - control loop update rate
 MOTION_CAPTURE_RATE = 40
 
 MAX_VEL = 0.2
-MAX_ROT = 0.1
+MAX_ROT = 0.5
 CRUISING_SPEED = 0.2
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
-HEAD_KP = 0.03
-HEAD_KI = 0.0
-HEAD_KD = 0.0
+HEAD_KP = 0.043
+HEAD_KI = 0.0003
+HEAD_KD = 0.0085
 
 # Navigation states
 STATE_IDLE = 0

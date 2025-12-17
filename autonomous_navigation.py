@@ -42,9 +42,9 @@ TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 
-MAX_VEL = 0.2
+MAX_VEL = 0.3
 MAX_ROT = 0.5
-CRUISING_SPEED = 0.2
+CRUISING_SPEED = 0.3
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
@@ -62,7 +62,7 @@ STATE_ARRIVED = 2
 STATE_FINISHED = 3
 BOX_SIZE  = 30
 
-MIN_LIN_SPEED = 0.09
+MIN_LIN_SPEED = 0.15
 MIN_ROT_SPEED = 0.02
 # =======================================================
 
@@ -517,33 +517,6 @@ class NavigationController:
     def set_is_final(self, is_final: bool):
         self.is_final = is_final
     
-    # def update(self, dt=0.02, is_stop=True):
-    #     """
-    #     Update control loop (call at CONTROL_RATE Hz).
-    #     """
-    #     with self.nav_shared_state['lock']:
-    #         self.state = self.nav_shared_state['state']
-    #     if self.state == STATE_IDLE:
-    #         return
-        
-    #     # Get current robot state (thread-safe)
-    #     with self.shared_state['lock']:
-    #         rel_x = self.shared_state['x']
-    #         rel_y = self.shared_state['y']
-    #         rel_yaw = self.shared_state['yaw']
-    #         t = self.shared_state.get('t', None)
-    #         tracking = self.shared_state['tracking']
-    #         bt_connected = self.shared_state['bt_connected']
-    #     if t is None or t == self.last_t:
-    #         return 
-    #     self.last_t = t
-    #     # Can't control if not tracking or not connected
-    #     if not tracking or not bt_connected:
-    #         self.stop_motors()
-    #         return
-
-    #     # navigation to final waypoint
-    #     self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_stop=is_stop)
     def update(self, dt=0.02, is_stop=True):
         with self.nav_shared_state['lock']:
             self.state = self.nav_shared_state['state']

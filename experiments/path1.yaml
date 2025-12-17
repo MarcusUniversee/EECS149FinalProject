@@ -1,0 +1,14 @@
+waypoints:
+  - name: start
+    x: -0.283
+    y: -0.07
+    heading: 0
+    stop: False
+  - name: wp1
+    x: -0.0395
+    y: -0.1
+    stop: True
+  - name: end
+    x: 0.3445
+    y: -0.0912
+    stop: True

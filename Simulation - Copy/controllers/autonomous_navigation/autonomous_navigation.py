@@ -36,9 +36,12 @@ CRUISING_SPEED = 0.2
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
-HEAD_KP = 0.043
-HEAD_KI = 0.0003
+HEAD_KP = 0.045
+HEAD_KI = 0.0
 HEAD_KD = 0.0085
+
+#Display parameter for smaller screens
+DISPLAY_SCALE = 0.6
 
 # Navigation states
 STATE_IDLE = 0
@@ -48,8 +51,7 @@ STATE_FINISHED = 3
 BOX_SIZE  = 30
 
 MIN_LIN_SPEED = 0.09
-MIN_ROT_SPEED = 0.05
-
+MIN_ROT_SPEED = 0.02
  #720 rpm is the polulu max
  #12 rps
  #75.4 rad/s
@@ -196,6 +198,8 @@ def main(filename=None, logfile=None):
     #get devices for simulating motion capture
     gps = robot.getDevice(GPS_NAME)
     mouse = robot.getMouse()
+    MOTION_CAPTURE_RATE = CONTROL_RATE
+
     mouse.enable(int(1000//MOTION_CAPTURE_RATE))
     mouse.enable3dPosition()
 
@@ -300,8 +304,13 @@ def main(filename=None, logfile=None):
     latency_buffer = []
     start_time = time.perf_counter()
     log = []
+    last_time = robot.getTime()
 
     while robot.step(int(1000*dt)) != -1:
+        now = robot.getTime()
+        dt_meas = now - last_time
+        last_time = now
+        dt_meas = max(0.005, min(dt_meas, 0.1))
         # ========== "Motion capture": get robot pose from Webots ==========
         gps_vals = gps.getValues()        # [x, y, z] with y up
         imu_rpy = imu.getRollPitchYaw()   # [roll, pitch, yaw]
@@ -366,7 +375,9 @@ def main(filename=None, logfile=None):
             shared_state['yaw'] = rel_yaw
             
             current_wp = waypoints[wp_idx]
-            navigation.update(dt=dt, is_stop=current_wp.get("stop", True))
+            # navigation.update(dt=dt, is_stop=current_wp.get("stop", True))
+            navigation.update(dt=dt_meas, is_stop=current_wp.get("stop", True))
+
         current = {
             "t": cur_time,
             "x": x_world,

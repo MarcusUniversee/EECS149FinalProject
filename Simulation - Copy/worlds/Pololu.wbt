@@ -13,6 +13,13 @@ WorldInfo {
         0.7
       ]
     }
+    ContactProperties {
+      material1 "rubber"
+      material2 "bumpGround"
+      coulombFriction [
+        0.85
+      ]
+    }
   ]
 }
 Viewpoint {
@@ -24,8 +31,8 @@ TexturedBackground {
 TexturedBackgroundLight {
 }
 Viewpoint {
-  orientation -0.4529548758911265 0.4965685779538785 0.7404400906186247 1.8887219168357403
-  position 0.3410973940070585 -1.035907382388283 3.23808553907417
+  orientation -0.3429486747414967 0.1964663925381598 0.9185788823482132 2.372959839465537
+  position 2.696318191055476 -2.6755841120195223 2.899798334626136
 }
 TexturedBackground {
 }
@@ -36,7 +43,7 @@ RectangleArena {
   floorSize 3 3
 }
 DEF WAYPOINT_MARKER Solid {
-  translation 0 0 0.002
+  translation 0.3445 -0.0912 0.002
   children [
     Shape {
       appearance PBRAppearance {
@@ -54,8 +61,8 @@ DEF WAYPOINT_MARKER Solid {
   ]
 }
 DEF POLULU_ROBOT Robot {
-  translation -0.7846410038873405 0.3299663667254416 0.01610865609938993
-  rotation -0.00210941635616034 -0.01161209113541898 0.9999303524256573 -3.105670212514177
+  translation 0.29720840968619616 -0.09087102795396368 0.07772544887601816
+  rotation -0.014376187689614657 0.05744565953803831 0.9982451209135724 1.6178764746288998
   children [
     Display {
       width 230
@@ -80,20 +87,20 @@ DEF POLULU_ROBOT Robot {
     }
     BallJoint {
       jointParameters BallJointParameters {
-        position -1480.3203800420406
+        position -1482.5714183150876
         anchor 0 0.0404 -0.0096
       }
       jointParameters2 JointParameters {
-        position 25.36285100065328
+        position 25.415334682821925
         axis 1 0 0
       }
       jointParameters3 JointParameters {
-        position -103.53481669737458
+        position -34.15900233936226
         axis 0 1 0
       }
       endPoint Solid {
-        translation -0.013735908661999474 0.055929553733729376 0.026546531317312994
-        rotation 0.6713624314742009 0.4527389828952833 -0.5867707379990871 -2.4143797582666235
+        translation 0.03888124554261488 0.04929087957505052 -0.021665659227239287
+        rotation -0.20491602778828005 -0.2229853082012392 -0.9530409088186462 -1.8461557368282406
         children [
           Shape {
             appearance PBRAppearance {
@@ -121,13 +128,13 @@ DEF POLULU_ROBOT Robot {
         }
         physics Physics {
         }
-        linearVelocity 2.992798953628521e-05 -0.0007628950484642818 9.130415807847509e-05
-        angularVelocity 0.12014095455065786 0.004712982378162138 0.45206029709826834
+        linearVelocity -0.00010282456187906329 -5.8515705624181946e-05 3.89117042820675e-06
+        angularVelocity 0.009012641710944336 -0.04375247744951308 -0.42004288813501744
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 1941.645717021587
+        position 1977.283804306017
       }
       device [
         RotationalMotor {
@@ -136,8 +143,8 @@ DEF POLULU_ROBOT Robot {
         }
       ]
       endPoint Solid {
-        translation 0.0414994745986966 -0.0003711236842271395 -1.760645792064359e-06
-        rotation 0.19500420265105625 -0.9604037381693015 -0.19899251407743399 1.6048922087233377
+        translation 0.0414994745986966 0.0001731818580558631 0.0003282437096247994
+        rotation -0.596275673183031 -0.5440199668794777 0.5903368506256198 2.145489028772377
         children [
           DEF wheel Shape {
             appearance PBRAppearance {
@@ -157,13 +164,13 @@ DEF POLULU_ROBOT Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity -2.7627132854717124e-07 6.36873990962885e-06 8.054769112331884e-05
-        angularVelocity -0.00039800874405227724 -1.7181816181239168e-05 1.3152025846149482e-07
+        linearVelocity 9.333118648807964e-08 1.8645542739811475e-07 -1.3344943000797319e-08
+        angularVelocity -3.325314355705905e-07 5.85156011097653e-06 -3.182795307790065e-07
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 2555.45425349915
+        position 2591.262364140686
       }
       device [
         DEF RightMotor RotationalMotor {
@@ -172,8 +179,8 @@ DEF POLULU_ROBOT Robot {
         }
       ]
       endPoint Solid {
-        translation -0.04149868078943599 0.00036805795931122657 -0.00037268559229777353
-        rotation -0.6186882938728938 0.48720949770040023 -0.616321101679288 2.229488738377619
+        translation -0.041498680789435985 -0.00046959263999656997 -0.00023204302312230488
+        rotation -0.6952199741146141 -0.19627410074532592 -0.6914807770059043 3.5291591018629913
         children [
           USE wheel
         ]
@@ -181,8 +188,8 @@ DEF POLULU_ROBOT Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity -2.7383618258466776e-07 6.367152022427877e-06 8.10730104831671e-05
-        angularVelocity -0.0003980143369233039 -1.718381150255643e-05 1.3090691443101783e-07
+        linearVelocity 9.891200616546765e-08 1.8692341842218342e-07 -1.2254481772931154e-08
+        angularVelocity -3.323026713395252e-07 5.846673265761775e-06 -3.179345307519318e-07
       }
     }
   ]
@@ -204,8 +211,8 @@ DEF POLULU_ROBOT Robot {
   }
   controller "autonomous_navigation"
   supervisor TRUE
-  linearVelocity -2.734371019751254e-07 6.443880792485878e-06 8.07912330418745e-05
-  angularVelocity -0.0003980114894070614 -1.718311553249337e-05 1.311469913684018e-07
+  linearVelocity 9.596027021864692e-08 1.868298486255912e-07 -1.1950169461578057e-08
+  angularVelocity -3.3245232257684473e-07 5.849882315615582e-06 -3.181669460467665e-07
 }
 Solid {
   translation -0.34 0.82 4.02622e-06
@@ -259,7 +266,120 @@ Solid {
   }
 }
 Solid {
-  translation 1.03 -3.68058e-07 -2.47807e-06
+  translation 1.10006 -0.423004 0.0834047
+  rotation 0.5644111945626767 0.6026425263832473 0.5641471340410668 2.057392013284558
+  children [
+    DEF obstacle Shape {
+      appearance PBRAppearance {
+        baseColor 0 0 0
+        roughness 1
+        metalness 0
+      }
+      geometry Mesh {
+        url [
+          "../Models/ramp.obj"
+        ]
+      }
+    }
+  ]
+  name "example"
+  contactMaterial "whiteboard"
+  boundingObject Group {
+    children [
+      Pose {
+        translation -0.363 -0.0003 3.8464e-08
+        rotation -0.577349935856137 -0.577349935856137 -0.5773509358560258 2.094395307179586
+        children [
+          Plane {
+            size 0.305 0.95
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.114 0
+        children [
+          Box {
+            size 0.245 0.228 0.31
+          }
+        ]
+      }
+    ]
+  }
+}
+Solid {
+  translation 0.0600558 -0.423063 0.0839582
+  rotation 0.5644111945626767 0.6026425263832473 0.5641471340410668 2.057392013284558
+  children [
+    DEF obstacle Shape {
+      appearance PBRAppearance {
+        baseColor 0 0 0
+        roughness 1
+        metalness 0
+      }
+      geometry Mesh {
+        url [
+          "../Models/ramp.obj"
+        ]
+      }
+    }
+  ]
+  name "angledRamp"
+  contactMaterial "whiteboard"
+  boundingObject Group {
+    children [
+      Pose {
+        translation -0.363 -0.0003 3.8464e-08
+        rotation -0.577349935856137 -0.577349935856137 -0.5773509358560258 2.094395307179586
+        children [
+          Plane {
+            size 0.305 0.95
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.114 0
+        children [
+          Box {
+            size 0.245 0.228 0.31
+          }
+        ]
+      }
+    ]
+  }
+}
+Solid {
+  translation 0.0500661 -1.10568 0.0823988
+  rotation 0.5644239799881435 0.6026550701680317 0.5641209420107612 2.057315308074302
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0 0 0
+        roughness 1
+        metalness 0
+      }
+      geometry Mesh {
+        url [
+          "../../../Downloads/stepping_stone.obj"
+        ]
+      }
+    }
+  ]
+  name "steppingStone"
+  contactMaterial ""
+  boundingObject Group {
+    children [
+      Pose {
+        children [
+          Box {
+            size 0.3 0.05 0.305
+          }
+        ]
+      }
+    ]
+  }
+}
+Solid {
+  translation 0.58 0.99 3.36042e-06
   rotation 0.5773509358554485 0.5773489358556708 0.5773509358554485 2.0944
   children [
     DEF bump Shape {
@@ -276,15 +396,831 @@ Solid {
     }
   ]
   name "bump"
-  contactMaterial "whiteboard"
+  contactMaterial "bumpGround"
   boundingObject Group {
     children [
       Pose {
-        translation -0.590961 0.033 0
-        rotation 0 0 1 0.3321694619948667
+        translation -0.97 0.0052 -0.01
         children [
           Box {
-            size 0.76 0.1 0.28
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.97 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.97 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.97 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.97 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.97 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.91 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.91 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.91 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.91 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.91 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.91 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.85 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.85 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.85 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.85 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.85 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.85 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.79 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.79 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.79 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.79 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.79 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.79 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.73 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.73 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.73 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.73 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.73 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.73 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.67 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.67 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.67 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.67 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.67 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.67 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.61 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.61 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.61 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.61 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.61 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.61 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.55 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.55 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.55 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.55 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.55 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.55 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.49 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.49 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.49 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.49 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.49 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.49 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.43 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.43 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.43 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.43 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.43 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.43 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.37 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.37 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.37 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.37 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.37 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.37 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.31 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.31 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.31 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.31 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.31 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.31 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.25 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.25 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.25 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.25 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.25 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.25 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.19 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.19 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.19 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.19 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.19 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.19 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.13 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.13 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.13 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.13 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.13 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.13 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.07 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.07 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.07 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.07 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.07 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.07 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.0052 -0.01
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.0052 -0.07
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.0052 -0.13
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.0052 -0.19
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.0052 -0.25
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.01 0.0052 -0.31
+        children [
+          Box {
+            size 0.02 0.004 0.02
+          }
+        ]
+      }
+      Pose {
+        translation -0.500961 0.0033 -0.17
+        rotation 0 0 -1 0
+        children [
+          Box {
+            size 1 0.0034 0.34
           }
         ]
       }

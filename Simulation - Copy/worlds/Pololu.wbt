@@ -24,8 +24,8 @@ TexturedBackground {
 TexturedBackgroundLight {
 }
 Viewpoint {
-  orientation 0.22837375322196882 0.8346936602657223 -0.5011306439956772 0.34191988407709967
-  position -2.242034149493348 0.28540614583495977 0.4202030787671618
+  orientation -0.4529548758911265 0.4965685779538785 0.7404400906186247 1.8887219168357403
+  position 0.3410973940070585 -1.035907382388283 3.23808553907417
 }
 TexturedBackground {
 }
@@ -224,6 +224,7 @@ Solid {
       }
     }
   ]
+  name "ramp"
   contactMaterial "whiteboard"
   boundingObject Group {
     children [
@@ -251,6 +252,39 @@ Solid {
             height 0.4
             radius 0.434
             subdivision 500
+          }
+        ]
+      }
+    ]
+  }
+}
+Solid {
+  translation 1.03 -3.68058e-07 -2.47807e-06
+  rotation 0.5773509358554485 0.5773489358556708 0.5773509358554485 2.0944
+  children [
+    DEF bump Shape {
+      appearance PBRAppearance {
+        baseColor 0 0 0
+        roughness 1
+        metalness 0
+      }
+      geometry Mesh {
+        url [
+          "../../../Downloads/bump.obj"
+        ]
+      }
+    }
+  ]
+  name "bump"
+  contactMaterial "whiteboard"
+  boundingObject Group {
+    children [
+      Pose {
+        translation -0.590961 0.033 0
+        rotation 0 0 1 0.3321694619948667
+        children [
+          Box {
+            size 0.76 0.1 0.28
           }
         ]
       }

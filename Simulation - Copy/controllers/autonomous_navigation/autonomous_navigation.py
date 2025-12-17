@@ -19,8 +19,8 @@ RIGHT_MOTOR_NAME = "RightMotor"
 GPS_NAME = "gps"
 IMU_NAME = "imu"
 DISPLAY_NAME = "display"
-FILENAME = None#"test.yaml"
-LOGFILE = None#"test.csv"
+FILENAME = "experiments/path1.yaml"
+LOGFILE = "sim_data/SIM_log1_ground_with_maxvel0_3.csv"
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
@@ -30,9 +30,9 @@ MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 MOTION_CAPTURE_RATE = 40
 
-MAX_VEL = 0.2
+MAX_VEL = 0.3
 MAX_ROT = 0.5
-CRUISING_SPEED = 0.2
+CRUISING_SPEED = 0.3
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
@@ -50,7 +50,7 @@ STATE_ARRIVED = 2
 STATE_FINISHED = 3
 BOX_SIZE  = 30
 
-MIN_LIN_SPEED = 0.09
+MIN_LIN_SPEED = 0.15
 MIN_ROT_SPEED = 0.02
  #720 rpm is the polulu max
  #12 rps
@@ -181,10 +181,9 @@ class NavigationController:
         m = max(1.0, abs(left), abs(right))
         left  /= m
         right /= m
+        #print(f"left: {left}, right: {right} ")
         left_power  = left
         right_power = right
-
-        #print(f"left: {left_power}, right: {right_power}")
         
         self.command_queue.put((left_power, right_power))
     
@@ -292,20 +291,23 @@ def main(filename=None, logfile=None):
 
             # In Webots, ground plane is usually X-Z, Y is up.
             # We'll map waypoint (x, y) -> (x, base_height, y)
-            translation_field.setSFVec3f([start_x, base_height, start_y])
+            translation_field.setSFVec3f([start_x, start_y, base_height])
 
-            # Set yaw to 0 initially (axis Y)
-            rotation_field.setSFRotation([0.0, 1.0, 0.0, 0.0])
+            
+            rotation_field.setSFRotation([0.0, 0.0, 1.0, math.pi/2])
             robot.step(int(1000 * dt))  # apply teleport
             print(f"Teleported robot to starting waypoint: ({start_x}, {start_y})")
 
-        time.sleep(0.5)
+        
         set_waypoint(1 if len(waypoints) > 1 else 0)
     latency_buffer = []
     start_time = time.perf_counter()
     log = []
     last_time = robot.getTime()
-
+    steps = CONTROL_RATE * 2
+    for _ in range(steps):
+        if robot.step(int(1000 * dt)) == -1:
+            break
     while robot.step(int(1000*dt)) != -1:
         now = robot.getTime()
         dt_meas = now - last_time

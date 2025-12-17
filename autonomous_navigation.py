@@ -42,9 +42,9 @@ TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 
-MAX_VEL = 0.3
+MAX_VEL = 0.5
 MAX_ROT = 0.5
-CRUISING_SPEED = 0.3
+CRUISING_SPEED = 0.5
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01

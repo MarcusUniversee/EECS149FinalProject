@@ -1,14 +1,22 @@
 waypoints:
   - name: start
-    x: -0.1
-    y: -0.1
+    x: -0.42
+    y: -0.15
     heading: 0
     stop: False
   - name: wp1
-    x: -0.2
-    y: -0.1
+    x: -0.1
+    y: 0.1
+    stop: True
+  - name: wp2
+    x: -0.02
+    y: -0.25
+    stop: True
+  - name: wp3
+    x: 0.46
+    y: -0.35
     stop: True
   - name: end
-    x: -0.2
-    y: 0.2
+    x: 0.05
+    y: -0.38
     stop: True

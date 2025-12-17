@@ -48,8 +48,8 @@ CRUISING_SPEED = 0.2
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
-HEAD_KP = 0.043
-HEAD_KI = 0.0003
+HEAD_KP = 0.045
+HEAD_KI = 0.0
 HEAD_KD = 0.0085
 
 #Display parameter for smaller screens
@@ -63,7 +63,7 @@ STATE_FINISHED = 3
 BOX_SIZE  = 30
 
 MIN_LIN_SPEED = 0.09
-MIN_ROT_SPEED = 0.018
+MIN_ROT_SPEED = 0.02
 # =======================================================
 
 def load_camera_calibration(path):
@@ -264,7 +264,7 @@ class MotionCaptureThread(threading.Thread):
                     (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
                     (0, 255, 0), 2
                 )
-                if self.heading:
+                if self.heading is not None:
                     L = 80
                     ex = int(self.sp_x + L * math.cos(math.radians(self.heading)))
                     ey = int(self.sp_y + L * math.sin(math.radians(self.heading)))
@@ -387,6 +387,7 @@ class MotionCaptureThread(threading.Thread):
                         self.shared_state['x'] = rel_x
                         self.shared_state['y'] = rel_y
                         self.shared_state['yaw'] = rel_yaw
+                        self.shared_state['t'] = cur_time
                         self.shared_state['tracking'] = True
                         self.shared_state['frame'] = frame  # Store frame for display
                 else:
@@ -501,6 +502,7 @@ class NavigationController:
         self.state = STATE_IDLE
         self.max_vel = max_vel   # max motor power (e.g. 0.6)
         self.max_rot = max_rot
+        self.last_t = None 
         self.v_cruise = v_cruise     # forward power for intermediate waypoints
 
         self.dist_pid = PID(dist_kp, dist_ki, dist_kd, integral_limit=2.0)
@@ -510,34 +512,74 @@ class NavigationController:
     def reset(self):
         self.dist_pid.reset()
         self.head_pid.reset()
-    
+        self.last_t = None
+
     def set_is_final(self, is_final: bool):
         self.is_final = is_final
     
+    # def update(self, dt=0.02, is_stop=True):
+    #     """
+    #     Update control loop (call at CONTROL_RATE Hz).
+    #     """
+    #     with self.nav_shared_state['lock']:
+    #         self.state = self.nav_shared_state['state']
+    #     if self.state == STATE_IDLE:
+    #         return
+        
+    #     # Get current robot state (thread-safe)
+    #     with self.shared_state['lock']:
+    #         rel_x = self.shared_state['x']
+    #         rel_y = self.shared_state['y']
+    #         rel_yaw = self.shared_state['yaw']
+    #         t = self.shared_state.get('t', None)
+    #         tracking = self.shared_state['tracking']
+    #         bt_connected = self.shared_state['bt_connected']
+    #     if t is None or t == self.last_t:
+    #         return 
+    #     self.last_t = t
+    #     # Can't control if not tracking or not connected
+    #     if not tracking or not bt_connected:
+    #         self.stop_motors()
+    #         return
+
+    #     # navigation to final waypoint
+    #     self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_stop=is_stop)
     def update(self, dt=0.02, is_stop=True):
-        """
-        Update control loop (call at CONTROL_RATE Hz).
-        """
         with self.nav_shared_state['lock']:
             self.state = self.nav_shared_state['state']
         if self.state == STATE_IDLE:
             return
-        
+
         # Get current robot state (thread-safe)
         with self.shared_state['lock']:
             rel_x = self.shared_state['x']
             rel_y = self.shared_state['y']
             rel_yaw = self.shared_state['yaw']
+            t = self.shared_state.get('t', None)
             tracking = self.shared_state['tracking']
             bt_connected = self.shared_state['bt_connected']
-        
-        # Can't control if not tracking or not connected
+
+        if t is None:
+            return
+
+        # first valid timestamp: just initialize and wait for next frame
+        if self.last_t is None:
+            self.last_t = t
+            return
+
+        dt_meas = t - self.last_t
+        if dt_meas <= 0:
+            return
+        self.last_t = t
+
+        # clamp dt so one bad frame doesn't explode PID
+        dt_meas = max(0.005, min(dt_meas, 0.1))
+
         if not tracking or not bt_connected:
             self.stop_motors()
             return
 
-        # navigation to final waypoint
-        self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt, is_stop=is_stop)
+        self.waypoint_navigate(rel_x, rel_y, rel_yaw, dt=dt_meas, is_stop=is_stop)
 
     def waypoint_navigate(self, dx, dy, d_dir_deg, dt, is_stop=True):
         """
@@ -624,6 +666,7 @@ def main(filename=None, logfile=None):
             'x': 10.0,
             'y': 10.0,
             'yaw': 0.0,
+            't': -1.0,
             'tracking': False,
             'bt_connected': False,
             'status': 'Initializing',

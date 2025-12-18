@@ -21,6 +21,7 @@ IMU_NAME = "imu"
 DISPLAY_NAME = "display"
 FILENAME = "experiments/path1.yaml"
 LOGFILE = "sim_data/SIM_log1_ground_with_maxvel0_3.csv"
+STARTING_Z = 0.01
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
@@ -291,7 +292,7 @@ def main(filename=None, logfile=None):
 
             # In Webots, ground plane is usually X-Z, Y is up.
             # We'll map waypoint (x, y) -> (x, base_height, y)
-            translation_field.setSFVec3f([start_x, start_y, base_height])
+            translation_field.setSFVec3f([start_x, start_y, STARTING_Z])
 
             
             rotation_field.setSFRotation([0.0, 0.0, 1.0, math.pi/2])

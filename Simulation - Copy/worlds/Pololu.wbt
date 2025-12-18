@@ -8,6 +8,13 @@ WorldInfo {
   contactProperties [
     ContactProperties {
       material1 "rubber"
+      material2 "ground"
+      coulombFriction [
+        0.8
+      ]
+    }
+    ContactProperties {
+      material1 "rubber"
       material2 "whiteboard"
       coulombFriction [
         0.7
@@ -31,8 +38,8 @@ TexturedBackground {
 TexturedBackgroundLight {
 }
 Viewpoint {
-  orientation -0.2609111263426487 0.21626606761550105 0.9408264304050656 2.0699893796558526
-  position 1.2888081629142953 -2.605319717387061 1.5106874566341744
+  orientation -0.2256052783179886 0.733251589159842 0.6414392920531368 1.148561532759604
+  position -2.480124444647765 -1.7721924346661442 3.1127122535974543
 }
 TexturedBackground {
 }
@@ -40,10 +47,11 @@ TexturedBackgroundLight {
   luminosity 0
 }
 RectangleArena {
+  contactMaterial "cardboard"
   floorSize 3 3
 }
 DEF WAYPOINT_MARKER Solid {
-  translation 0.3445 -0.0912 0.002
+  translation 0.3832 -0.0597 0.002
   children [
     Shape {
       appearance PBRAppearance {
@@ -61,8 +69,8 @@ DEF WAYPOINT_MARKER Solid {
   ]
 }
 DEF POLULU_ROBOT Robot {
-  translation 0.29720840968619616 -0.09087102795396368 0.07772544887601816
-  rotation -0.014376187689614657 0.05744565953803831 0.9982451209135724 1.6178764746288998
+  translation 0.2733453195725872 -0.07896910302096248 0.016358063554386692
+  rotation -0.026503328509118136 -0.02784429976113839 0.9992608611112265 1.6612432461789877
   children [
     Display {
       width 230
@@ -87,20 +95,20 @@ DEF POLULU_ROBOT Robot {
     }
     BallJoint {
       jointParameters BallJointParameters {
-        position -1482.5714183150876
+        position -1366.0415451093936
         anchor 0 0.0404 -0.0096
       }
       jointParameters2 JointParameters {
-        position 25.415334682821925
+        position 24.0675277061411
         axis 1 0 0
       }
       jointParameters3 JointParameters {
-        position -34.15900233936226
+        position 21.661988241580094
         axis 0 1 0
       }
       endPoint Solid {
-        translation 0.03888124554261488 0.04929087957505052 -0.021665659227239287
-        rotation -0.20491602778828005 -0.2229853082012392 -0.9530409088186462 -1.8461557368282406
+        translation 0.02784092099824284 0.04874431163069451 -0.03953713861881482
+        rotation 0.8145922943079033 -0.568833463017276 -0.1134367021997706 2.5174814880784524
         children [
           Shape {
             appearance PBRAppearance {
@@ -128,13 +136,13 @@ DEF POLULU_ROBOT Robot {
         }
         physics Physics {
         }
-        linearVelocity -0.00010282456187906329 -5.8515705624181946e-05 3.89117042820675e-06
-        angularVelocity 0.009012641710944336 -0.04375247744951308 -0.42004288813501744
+        linearVelocity 0.19914650237029674 -0.0049477683955082424 0.023775077955968428
+        angularVelocity 0.7791727213010251 31.361645374422473 -3.1118520081274434
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 1977.283804306017
+        position 2251.3502530968535
       }
       device [
         RotationalMotor {
@@ -143,8 +151,8 @@ DEF POLULU_ROBOT Robot {
         }
       ]
       endPoint Solid {
-        translation 0.0414994745986966 0.0001731818580558631 0.0003282437096247994
-        rotation -0.596275673183031 -0.5440199668794777 0.5903368506256198 2.145489028772377
+        translation 0.041499474598696594 9.627159584648691e-05 -0.0003584238673708846
+        rotation -0.6697355373276016 0.32451731321299837 0.6679392363572642 3.77857168500624
         children [
           DEF wheel Shape {
             appearance PBRAppearance {
@@ -164,13 +172,13 @@ DEF POLULU_ROBOT Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity 9.333118648807964e-08 1.8645542739811475e-07 -1.3344943000797319e-08
-        angularVelocity -3.325314355705905e-07 5.85156011097653e-06 -3.182795307790065e-07
+        linearVelocity 0.13955046389167186 0.009695936694695265 -1.921160328422231e-05
+        angularVelocity -0.6170255802468303 8.590703441462122 0.5864476205723991
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 2591.262364140686
+        position 3126.543930395829
       }
       device [
         DEF RightMotor RotationalMotor {
@@ -179,8 +187,8 @@ DEF POLULU_ROBOT Robot {
         }
       ]
       endPoint Solid {
-        translation -0.041498680789435985 -0.00046959263999656997 -0.00023204302312230488
-        rotation -0.6952199741146141 -0.19627410074532592 -0.6914807770059043 3.5291591018629913
+        translation -0.04149868078943604 5.175274968812217e-05 -0.0005212320644572875
+        rotation 0.6890061809831222 -0.23405368909050736 0.6859222646846924 3.605533370468954
         children [
           USE wheel
         ]
@@ -188,8 +196,8 @@ DEF POLULU_ROBOT Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity 9.891200616546765e-08 1.8692341842218342e-07 -1.2254481772931154e-08
-        angularVelocity -3.323026713395252e-07 5.846673265761775e-06 -3.179345307519318e-07
+        linearVelocity 0.18776957478190687 0.013601527253330206 -5.204255236288087e-06
+        angularVelocity -0.8387584748212309 11.598553275608026 0.5977122828272619
       }
     }
   ]
@@ -211,11 +219,11 @@ DEF POLULU_ROBOT Robot {
   }
   controller "autonomous_navigation"
   supervisor TRUE
-  linearVelocity 9.596027021864692e-08 1.868298486255912e-07 -1.1950169461578057e-08
-  angularVelocity -3.3245232257684473e-07 5.849882315615582e-06 -3.181669460467665e-07
+  linearVelocity 0.1685642811661311 0.011965580902264926 0.000899043319076709
+  angularVelocity 0.060570139715621515 -1.187861464609532 0.5893038834206932
 }
 Solid {
-  translation -0.34 0.82 4.02622e-06
+  translation -0.34 1.01 5.00225e-06
   rotation 0.5773509358554485 0.5773489358556708 0.5773509358554485 2.0944
   children [
     DEF obstacle Shape {
@@ -259,129 +267,6 @@ Solid {
             height 0.4
             radius 0.434
             subdivision 500
-          }
-        ]
-      }
-    ]
-  }
-}
-Solid {
-  translation 1.10006 -0.423004 0.0834047
-  rotation 0.5644111945626767 0.6026425263832473 0.5641471340410668 2.057392013284558
-  children [
-    DEF obstacle Shape {
-      appearance PBRAppearance {
-        baseColor 0 0 0
-        roughness 1
-        metalness 0
-      }
-      geometry Mesh {
-        url [
-          "../Models/ramp.obj"
-        ]
-      }
-    }
-  ]
-  name "example"
-  contactMaterial "whiteboard"
-  boundingObject Group {
-    children [
-      Pose {
-        translation -0.363 -0.0003 3.8464e-08
-        rotation -0.577349935856137 -0.577349935856137 -0.5773509358560258 2.094395307179586
-        children [
-          Plane {
-            size 0.305 0.95
-          }
-        ]
-      }
-      Pose {
-        translation -0.01 0.114 0
-        children [
-          Box {
-            size 0.245 0.228 0.31
-          }
-        ]
-      }
-    ]
-  }
-}
-Solid {
-  translation 0.0600558 -0.423063 0.0839582
-  rotation 0.5644111945626767 0.6026425263832473 0.5641471340410668 2.057392013284558
-  children [
-    DEF obstacle Shape {
-      appearance PBRAppearance {
-        baseColor 0 0 0
-        roughness 1
-        metalness 0
-      }
-      geometry Mesh {
-        url [
-          "../Models/ramp.obj"
-        ]
-      }
-    }
-  ]
-  name "angledRamp"
-  contactMaterial "whiteboard"
-  boundingObject Group {
-    children [
-      Pose {
-        translation -0.108 -0.2061 0
-        children [
-          Capsule {
-            height 0.4
-            radius 0.434
-            subdivision 500
-          }
-        ]
-      }
-      Pose {
-        translation -0.363 -0.0003 3.8464e-08
-        rotation -0.577349935856137 -0.577349935856137 -0.5773509358560258 2.094395307179586
-        children [
-          Plane {
-            size 0.305 0.95
-          }
-        ]
-      }
-      Pose {
-        translation -0.01 0.114 0
-        children [
-          Box {
-            size 0.245 0.228 0.31
-          }
-        ]
-      }
-    ]
-  }
-}
-Solid {
-  translation 0.0500661 -1.10568 0.0823988
-  rotation 0.5644239799881435 0.6026550701680317 0.5641209420107612 2.057315308074302
-  children [
-    Shape {
-      appearance PBRAppearance {
-        baseColor 0 0 0
-        roughness 1
-        metalness 0
-      }
-      geometry Mesh {
-        url [
-          "../../../Downloads/stepping_stone.obj"
-        ]
-      }
-    }
-  ]
-  name "steppingStone"
-  contactMaterial ""
-  boundingObject Group {
-    children [
-      Pose {
-        children [
-          Box {
-            size 0.3 0.05 0.305
           }
         ]
       }

@@ -19,8 +19,8 @@ RIGHT_MOTOR_NAME = "RightMotor"
 GPS_NAME = "gps"
 IMU_NAME = "imu"
 DISPLAY_NAME = "display"
-FILENAME = "experiments/path1.yaml"
-LOGFILE = "sim_data/SIM_log1_ground_with_maxvel0_3.csv"
+FILENAME = "experiments/recorded_waypoints.yaml"
+LOGFILE = "SIM_log1_cardboardground_with_max0_5_min0_2.csv"
 STARTING_Z = 0.01
 
 # Navigation control parameters
@@ -31,9 +31,11 @@ MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 MOTION_CAPTURE_RATE = 40
 
-MAX_VEL = 0.3
+MAX_VEL = 0.5
+CRUISING_SPEED = 0.5   
+MIN_LIN_SPEED = 0.2
+
 MAX_ROT = 0.5
-CRUISING_SPEED = 0.3
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
@@ -51,7 +53,6 @@ STATE_ARRIVED = 2
 STATE_FINISHED = 3
 BOX_SIZE  = 30
 
-MIN_LIN_SPEED = 0.15
 MIN_ROT_SPEED = 0.02
  #720 rpm is the polulu max
  #12 rps

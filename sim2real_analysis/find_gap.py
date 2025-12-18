@@ -315,9 +315,8 @@ def strip_arrays(d: Dict) -> Dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sim", required=True)
-    ap.add_argument("--real", required=True)
-    ap.add_argument("--out", default="sim2real_out")
+    ap.add_argument("--folder", required=True)
+    ap.add_argument("--name", required=True)
 
     #sample rate for normalized comparisons
     ap.add_argument("--n", type=int, default=2000) 
@@ -334,15 +333,19 @@ def main() -> None:
 
     args = ap.parse_args()
 
-    sim = load_csv(args.sim)
-    real = load_csv(args.real)
+    sim_name = os.path.join(args.folder, "SIM_log1" + args.name[4:])
+    real_name = os.path.join(args.folder, args.name)
+    sim = load_csv(sim_name)
+    real = load_csv(real_name)
+    out_name = os.path.join("./sim2real_results", args.name)
+    out_name = out_name[:-4]
 
     arc = arclength_align(sim, real, n=args.n)
     cp = closest_point_metrics(sim, real, time_diff=args.max_lag, yaw_weight_m_per_rad=args.yw)
     dyn = timing_dynamics_metrics(sim, real, dt=args.dt, max_lag_s=args.max_lag)
     tau = normalized_time_align(sim, real, n=args.n)
     rs = resample_overlap(sim, real, dt=args.dt)
-    save_plots(args.out, sim, real, arc, cp, rs, dyn, tau)
+    save_plots(out_name, sim, real, arc, cp, rs, dyn, tau)
 
     sim2real_gap_m = (
         float(np.nanmax(arc["_pos_err"]))
@@ -352,8 +355,8 @@ def main() -> None:
 
     metrics = {
         "inputs": {
-            "sim_csv": args.sim,
-            "real_csv": args.real
+            "sim_csv": sim_name,
+            "real_csv": real_name
         },
 
         "sim2real_gap_m": sim2real_gap_m,
@@ -364,19 +367,19 @@ def main() -> None:
         "timing_and_dynamics": strip_arrays(dyn),
         "normalized_time_alignment": strip_arrays(tau),
 
-        "plots_dir": args.out,
+        "plots_dir": out_name,
     }
     try:
         s = json.dumps(metrics, indent=2)
         print(s)
 
-        with open(os.path.join(args.out, "results.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(out_name, "results.json"), "w", encoding="utf-8") as f:
             f.write(s + "\n")
     except Exception as e:
         print(repr(e))
     
     np.savez(
-        os.path.join(args.out, "raw_metrics.npz"),
+        os.path.join(out_name, "raw_metrics.npz"),
         arc=arc,
         cp=cp,
         rs=rs,

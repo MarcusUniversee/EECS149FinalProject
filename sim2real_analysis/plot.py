@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from dataset import RunData
-from typing import Dict
+from typing import Dict, List
 
 def ensure_dir(d: str) -> None:
     os.makedirs(d, exist_ok=True)
@@ -30,6 +30,106 @@ def plot_raw_overlay(out_dir: str, sim: RunData, real: RunData, note) -> None:
     plt.close()
     note(fname, "Raw XY paths (no alignment). Quick sanity check for gross offsets, scale issues, or coordinate-frame mismatch.")
 
+def plot_arc_errors(
+    out_dir: str,
+    arcs: List[Dict],
+    labels: List[str],
+    basename: str,
+) -> None:
+    assert len(arcs) == len(labels), "arcs and labels must have same length"
+    ensure_dir(out_dir)
+    # keep only valid arcs + matching labels
+    pairs = [(a, l) for a, l in zip(arcs, labels) if a.get("ok", False)]
+    if not pairs:
+        return
+
+    cmap = plt.get_cmap("tab10")  # distinct, readable colors
+
+    # 1) Arc-length aligned overlay
+    plt.figure()
+    for i, (arc, label) in enumerate(pairs):
+        if i == 0:
+            plt.plot(arc["_sim_xu"], arc["_sim_yu"], label="sim (arc aligned)")
+        ux = arc["_real_xu"]
+        uy = arc["_real_yu"]
+        pos_err = arc["_pos_err"]
+        color = cmap((i+1) % cmap.N)
+
+        plt.plot(ux, uy, 
+            color=color,
+            label=label,)
+       
+    
+    plt.axis("equal")
+    plt.xlabel("x (m)")
+    plt.ylabel("y (m)")
+    plt.title("Trajectory overlay (arc-length aligned)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{basename}_overlay.png"), dpi=200)
+    plt.close()
+
+    # ----------------------------
+    # Position error vs arc-length
+    # ----------------------------
+    plt.figure()
+    for i, (arc, label) in enumerate(pairs):
+        u = arc["_u"]
+        pos_err = arc["_pos_err"]
+        color = cmap((i+1) % cmap.N)
+
+        plt.plot(
+            u,
+            pos_err,
+            color=color,
+            label=label,
+        )
+
+    plt.xlabel("normalized arc length u")
+    plt.ylabel("pos error (m)")
+    plt.title("Position error vs arc length")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{basename}_pos.png"), dpi=200)
+    plt.close()
+
+    # ----------------------------
+    # Yaw error vs arc-length
+    # ----------------------------
+    plt.figure()
+    for i, (arc, label) in enumerate(pairs):
+        u = arc["_u"]
+        yaw_err = arc["_yaw_err"]
+        color = cmap((i+1) % cmap.N)
+
+        plt.plot(
+            u,
+            yaw_err,
+            color=color,
+            label=label,
+        )
+
+    plt.xlabel("normalized arc length u")
+    plt.ylabel("yaw error (rad)")
+    plt.title("Yaw error vs arc length")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{basename}_yaw.png"), dpi=200)
+    plt.close()
+
+def calc_gap(pos_err, u, ignore_cutoff=0.1):
+    K = int(ignore_cutoff * len(pos_err))     # or K = 20, etc.
+
+    pos_err_cut = pos_err[K:]
+    u_cut       = u[K:]
+
+    if np.any(np.isfinite(pos_err_cut)):
+        sim2real_gap_m = float(np.nanmax(pos_err_cut))
+        gap_u          = float(u_cut[np.nanargmax(pos_err_cut)])
+    else:
+        sim2real_gap_m = float("nan")
+        gap_u          = float("nan")
+    return sim2real_gap_m, gap_u
 
 def plot_arc(out_dir: str, arc: Dict, note) -> None:
     if not arc.get("ok", False):
@@ -39,8 +139,7 @@ def plot_arc(out_dir: str, arc: Dict, note) -> None:
     pos_err = arc["_pos_err"]
     yaw_err = arc["_yaw_err"]
 
-    sim2real_gap_m = float(np.nanmax(pos_err))
-    gap_u = float(u[int(np.nanargmax(pos_err))]) if np.any(np.isfinite(pos_err)) else float("nan")
+    sim2real_gap_m, gap_u = calc_gap(pos_err, u)
 
     # 1) Arc-length aligned overlay
     plt.figure()
@@ -404,9 +503,9 @@ def save_plots(
     plot_raw_overlay(out_dir, sim, real, note)
     plot_arc(out_dir, arc, note)
     plot_cp(out_dir, cp, note)
-    plot_rs(out_dir, rs, note)
+    #plot_rs(out_dir, rs, note)
     plot_dyn(out_dir, dyn, note)
-    plot_tau(out_dir, tau, note)
+    #plot_tau(out_dir, tau, note)
 
     # Write the descriptions file last
     #write_notes()

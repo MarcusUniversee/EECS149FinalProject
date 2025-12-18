@@ -8,6 +8,13 @@ WorldInfo {
   contactProperties [
     ContactProperties {
       material1 "rubber"
+      material2 "parchment_paper"
+      coulombFriction [
+        0.4
+      ]
+    }
+    ContactProperties {
+      material1 "rubber"
       material2 "ground"
       coulombFriction [
         0.8
@@ -47,7 +54,7 @@ TexturedBackgroundLight {
   luminosity 0
 }
 RectangleArena {
-  contactMaterial "cardboard"
+  contactMaterial "parchment_paper"
   floorSize 3 3
 }
 DEF WAYPOINT_MARKER Solid {
@@ -69,8 +76,8 @@ DEF WAYPOINT_MARKER Solid {
   ]
 }
 DEF POLULU_ROBOT Robot {
-  translation 0.2733453195725872 -0.07896910302096248 0.016358063554386692
-  rotation -0.026503328509118136 -0.02784429976113839 0.9992608611112265 1.6612432461789877
+  translation 0.33716282327597236 -0.07112186761893295 0.01574355062206762
+  rotation 0.0460783514290906 0.04941446527079653 0.9977148872055477 1.74690081989568
   children [
     Display {
       width 230
@@ -95,20 +102,20 @@ DEF POLULU_ROBOT Robot {
     }
     BallJoint {
       jointParameters BallJointParameters {
-        position -1366.0415451093936
+        position -1362.5585616515762
         anchor 0 0.0404 -0.0096
       }
       jointParameters2 JointParameters {
-        position 24.0675277061411
+        position 30.409872222704006
         axis 1 0 0
       }
       jointParameters3 JointParameters {
-        position 21.661988241580094
+        position 22.81777275371977
         axis 0 1 0
       }
       endPoint Solid {
-        translation 0.02784092099824284 0.04874431163069451 -0.03953713861881482
-        rotation 0.8145922943079033 -0.568833463017276 -0.1134367021997706 2.5174814880784524
+        translation -0.029379698610637217 0.06943829028636819 -0.015380678877151978
+        rotation -0.25839169829499525 -0.26640436133516604 -0.9285808777450839 2.3572207839433834
         children [
           Shape {
             appearance PBRAppearance {
@@ -136,13 +143,13 @@ DEF POLULU_ROBOT Robot {
         }
         physics Physics {
         }
-        linearVelocity 0.19914650237029674 -0.0049477683955082424 0.023775077955968428
-        angularVelocity 0.7791727213010251 31.361645374422473 -3.1118520081274434
+        linearVelocity 0.006685344180114801 -0.004237612270122752 0.0003053628649675977
+        angularVelocity -1.287079043691012 -2.0411836849277805 -3.518368541171094
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 2251.3502530968535
+        position 2290.1458143721993
       }
       device [
         RotationalMotor {
@@ -151,8 +158,8 @@ DEF POLULU_ROBOT Robot {
         }
       ]
       endPoint Solid {
-        translation 0.041499474598696594 9.627159584648691e-05 -0.0003584238673708846
-        rotation -0.6697355373276016 0.32451731321299837 0.6679392363572642 3.77857168500624
+        translation 0.0414994745986966 0.0003628235042695337 -7.807044010063277e-05
+        rotation -0.7074991342282526 -0.06771382604324108 0.7034627302344162 3.01300199415802
         children [
           DEF wheel Shape {
             appearance PBRAppearance {
@@ -172,13 +179,13 @@ DEF POLULU_ROBOT Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity 0.13955046389167186 0.009695936694695265 -1.921160328422231e-05
-        angularVelocity -0.6170255802468303 8.590703441462122 0.5864476205723991
+        linearVelocity -4.432038082366616e-06 -2.6920063667430446e-06 1.0934683412576281e-05
+        angularVelocity -0.0002209253856554762 -0.0003248448533314617 0.00010708756245073398
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 3126.543930395829
+        position 3166.5080691786334
       }
       device [
         DEF RightMotor RotationalMotor {
@@ -187,8 +194,8 @@ DEF POLULU_ROBOT Robot {
         }
       ]
       endPoint Solid {
-        translation -0.04149868078943604 5.175274968812217e-05 -0.0005212320644572875
-        rotation 0.6890061809831222 -0.23405368909050736 0.6859222646846924 3.605533370468954
+        translation -0.04149868078943603 0.0003674797960833964 0.000373255691971593
+        rotation 0.10769441376474698 -0.9882355099149043 0.10859323269475235 4.705695400293508
         children [
           USE wheel
         ]
@@ -196,8 +203,8 @@ DEF POLULU_ROBOT Robot {
         boundingObject USE wheel
         physics Physics {
         }
-        linearVelocity 0.18776957478190687 0.013601527253330206 -5.204255236288087e-06
-        angularVelocity -0.8387584748212309 11.598553275608026 0.5977122828272619
+        linearVelocity -5.9135123051455e-06 1.0608011669272405e-05 3.678688299344236e-05
+        angularVelocity -0.00022087177696281769 -0.0003248389329734092 0.00010718309576486642
       }
     }
   ]
@@ -219,8 +226,8 @@ DEF POLULU_ROBOT Robot {
   }
   controller "autonomous_navigation"
   supervisor TRUE
-  linearVelocity 0.1685642811661311 0.011965580902264926 0.000899043319076709
-  angularVelocity 0.060570139715621515 -1.187861464609532 0.5893038834206932
+  linearVelocity -5.165298531812558e-06 3.983179586224693e-06 2.39888508428447e-05
+  angularVelocity -0.00022070264976977382 -0.00032480751601685797 0.00010659900812714993
 }
 Solid {
   translation -0.34 1.01 5.00225e-06

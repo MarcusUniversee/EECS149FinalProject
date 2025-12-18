@@ -17,7 +17,7 @@ import csv
 parser = argparse.ArgumentParser(description="Waypoint navigation")
 parser.add_argument("-f", default=None, help="Filepath to waypoint yaml")
 parser.add_argument("-l", default=None, help="Filepath to log file")
-
+parser.add_argument("-o", "--out", default="recorded_waypoints.yaml", help="Output YAML path for recorded clicks")
 # ==================== CONFIGURATION ====================
 # Camera settings
 CAMERA_ID = 0
@@ -42,9 +42,9 @@ TURN_SPEED = 0.35  # Motor speed for turning (0.0 to 1.0)
 MIN_TURN_SPEED = 0.25  # Minimum speed to ensure movement
 CONTROL_RATE = 50  # Hz - control loop update rate
 
-MAX_VEL = 0.5
+MAX_VEL = 0.3
 MAX_ROT = 0.5
-CRUISING_SPEED = 0.5
+CRUISING_SPEED = 0.3
 DIST_KP = 0.9
 DIST_KI = 0.0 
 DIST_KD = 0.01
@@ -62,7 +62,7 @@ STATE_ARRIVED = 2
 STATE_FINISHED = 3
 BOX_SIZE  = 30
 
-MIN_LIN_SPEED = 0.15
+MIN_LIN_SPEED = 0.2
 MIN_ROT_SPEED = 0.02
 # =======================================================
 
@@ -164,6 +164,11 @@ class MotionCaptureThread(threading.Thread):
         self.nav_shared_state = nav_shared_state
         self.running = False
         
+        self.waypoints_px = []   
+        self.waypoints_m  = []  
+        self.latest_z = None
+        self.latest_yaw = None
+
         # Camera and detector
         self.cap = None
         self.detector = None
@@ -215,17 +220,94 @@ class MotionCaptureThread(threading.Thread):
         
         return True
     
-    def mouse_callback(self, event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            full_x = int(round(x / DISPLAY_SCALE))
-            full_y = int(round(y / DISPLAY_SCALE))
+    # def mouse_callback(self, event, x, y, flags, param):
+    #     if event == cv2.EVENT_LBUTTONDOWN:
+    #         full_x = int(round(x / DISPLAY_SCALE))
+    #         full_y = int(round(y / DISPLAY_SCALE))
 
-            full_x = max(0, min(full_x, IMAGE_RES[0] - 1))
-            full_y = max(0, min(full_y, IMAGE_RES[1] - 1))
-            self.sp_x, self.sp_y = full_x, full_y
-            print(f"New waypoint set: ({full_x}, {full_y}) from ({x}, {y}) - Press Enter to navigate")
-            # Don't change state here - let main thread control it
-    
+    #         full_x = max(0, min(full_x, IMAGE_RES[0] - 1))
+    #         full_y = max(0, min(full_y, IMAGE_RES[1] - 1))
+    #         self.sp_x, self.sp_y = full_x, full_y
+    #         print(f"New waypoint set: ({full_x}, {full_y}) from ({x}, {y}) - Press Enter to navigate")
+    #         # Don't change state here - let main thread control it
+    def mouse_callback(self, event, x, y, flags, param):
+        if event != cv2.EVENT_LBUTTONDOWN:
+            return
+
+        full_x = int(round(x / DISPLAY_SCALE))
+        full_y = int(round(y / DISPLAY_SCALE))
+
+        full_x = max(0, min(full_x, IMAGE_RES[0] - 1))
+        full_y = max(0, min(full_y, IMAGE_RES[1] - 1))
+
+        # Always move the "selection box" to the latest click
+        self.sp_x, self.sp_y = full_x, full_y
+
+        # Need a valid z from AprilTag pose to convert px -> meters
+        if self.latest_z is None:
+            return
+
+        xm, ym = px_to_meters(full_x, full_y, self.latest_z, self.new_camera_matrix)
+
+        # Record for drawing + export
+        self.waypoints_px.append((full_x, full_y))
+
+        # Store meters with rounding (nice YAML)
+        wp = {
+            "x": float(round(xm, 4)),
+            "y": float(round(ym, 4)),
+        }
+        # Store start heading only (your file-mode expects heading on first waypoint)
+        if len(self.waypoints_m) == 0:
+            wp["heading"] = float(round(self.latest_yaw if self.latest_yaw is not None else 0.0, 1))
+            wp["stop"] = False
+        else:
+            wp["stop"] = True
+
+        self.waypoints_m.append(wp)
+
+        print(f"Recorded waypoint #{len(self.waypoints_m)-1}: px=({full_x},{full_y})  m=({wp['x']},{wp['y']})")
+
+    def export_waypoints_yaml(self, path):
+        if not self.waypoints_m:
+            print("No recorded waypoints to export.")
+            return
+
+        out_list = []
+
+        # Name first as start, last as end, middle as wp1/wp2...
+        n = len(self.waypoints_m)
+        for i, wp in enumerate(self.waypoints_m):
+            wp2 = dict(wp)  # copy
+            if i == 0:
+                wp2["name"] = "start"
+                wp2["stop"] = False
+                # heading already present from click
+            elif i == n - 1:
+                wp2["name"] = "end"
+                wp2["stop"] = True
+                wp2.pop("heading", None)  # keep heading only for start
+            else:
+                wp2["name"] = f"wp{i}"
+                wp2["stop"] = True
+                wp2.pop("heading", None)  # keep heading only for start
+
+            # Ensure key order looks nice
+            ordered = {}
+            ordered["name"] = wp2["name"]
+            ordered["x"] = wp2["x"]
+            ordered["y"] = wp2["y"]
+            if "heading" in wp2:
+                ordered["heading"] = wp2["heading"]
+            ordered["stop"] = wp2["stop"]
+
+            out_list.append(ordered)
+
+        data = {"waypoints": out_list}
+        with open(path, "w") as f:
+            yaml.safe_dump(data, f, sort_keys=False)
+
+
     def run(self):
         """Main tracking loop - runs continuously at high speed."""
         self.running = True
@@ -264,6 +346,17 @@ class MotionCaptureThread(threading.Thread):
                     (self.sp_x + BOX_SIZE, self.sp_y + BOX_SIZE),
                     (0, 255, 0), 2
                 )
+
+                if len(self.waypoints_px) >= 1:
+                    for i, (px, py) in enumerate(self.waypoints_px):
+                        cv2.circle(frame, (px, py), 5, (0, 255, 255), -1)
+                        if i > 0:
+                            pprev = self.waypoints_px[i - 1]
+                            cv2.line(frame, pprev, (px, py), (0, 255, 255), 2)
+                        cv2.putText(
+                            frame, str(i), (px + 6, py - 6),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2
+                            )
                 if self.heading is not None:
                     L = 80
                     ex = int(self.sp_x + L * math.cos(math.radians(self.heading)))
@@ -285,7 +378,9 @@ class MotionCaptureThread(threading.Thread):
                     
                     roll, pitch, yaw = rotation_matrix_to_euler_angles(robot_detection.pose_R)
                     
-                    
+                    self.latest_z = float(z)
+                    self.latest_yaw = float(yaw)
+
                     if self.filename is None:
                         self.sp_xm, self.sp_ym = px_to_meters(self.sp_x, self.sp_y, z, self.new_camera_matrix)
                     else:
@@ -633,7 +728,7 @@ class NavigationController:
 
         
 
-def main(filename=None, logfile=None):
+def main(filename=None, logfile=None, waypoints_out="recorded_waypoints.yaml"):
     """Main entry point."""
     shared_state = {
             'x': 10.0,
@@ -745,7 +840,8 @@ def main(filename=None, logfile=None):
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()
                     writer.writerows(logs)
-
+            if waypoints_out is not None:
+                motion_capture.export_waypoints_yaml(waypoints_out)
             
                         
     else:
@@ -863,4 +959,4 @@ def main(filename=None, logfile=None):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    main(filename=args.f, logfile=args.l)
+    main(filename=args.f, logfile=args.l, waypoints_out=args.out)

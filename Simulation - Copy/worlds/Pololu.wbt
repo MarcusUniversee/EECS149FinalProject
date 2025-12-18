@@ -31,8 +31,8 @@ TexturedBackground {
 TexturedBackgroundLight {
 }
 Viewpoint {
-  orientation -0.3429486747414967 0.1964663925381598 0.9185788823482132 2.372959839465537
-  position 2.696318191055476 -2.6755841120195223 2.899798334626136
+  orientation -0.2609111263426487 0.21626606761550105 0.9408264304050656 2.0699893796558526
+  position 1.2888081629142953 -2.605319717387061 1.5106874566341744
 }
 TexturedBackground {
 }
@@ -327,6 +327,16 @@ Solid {
   contactMaterial "whiteboard"
   boundingObject Group {
     children [
+      Pose {
+        translation -0.108 -0.2061 0
+        children [
+          Capsule {
+            height 0.4
+            radius 0.434
+            subdivision 500
+          }
+        ]
+      }
       Pose {
         translation -0.363 -0.0003 3.8464e-08
         rotation -0.577349935856137 -0.577349935856137 -0.5773509358560258 2.094395307179586

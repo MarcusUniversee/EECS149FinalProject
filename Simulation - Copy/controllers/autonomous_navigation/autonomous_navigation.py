@@ -20,8 +20,8 @@ GPS_NAME = "gps"
 IMU_NAME = "imu"
 DISPLAY_NAME = "display"
 FILENAME = "experiments/recorded_waypoints.yaml"
-LOGFILE = "SIM_log1_paperground_with_max0_3_min0_15.csv"
-STARTING_Z = 0.01
+LOGFILE = "SIM_log1_3points_downhill_with_max0_3_min0_2.csv"
+STARTING_Z = 0.3
 
 # Navigation control parameters
 HEADING_THRESHOLD = 5.0  # degrees - target reached if within this angle
@@ -33,7 +33,7 @@ MOTION_CAPTURE_RATE = 40
 
 MAX_VEL = 0.3
 CRUISING_SPEED = 0.3   
-MIN_LIN_SPEED = 0.15
+MIN_LIN_SPEED = 0.2
 
 MAX_ROT = 0.5
 DIST_KP = 0.9

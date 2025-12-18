@@ -8,6 +8,10 @@ from utils import build_heat_polylines, xy_to_xyz_zup, import_node, shape_thick_
 # ---------------------------
 # Config
 # ---------------------------
+
+NPZ_PATH = "../../../sim2real_results/log1_ground_with_maxvel0_3/raw_metrics.npz"
+YAML_PATH = "../../../experiments/path1.yaml"
+
 SIM_COLOR = (0.1, 0.1, 1.0)   # sim path (blue-ish)
 REAL_COLOR = (0.2, 1.0, 0.4)  # real path (green-ish)
 WP_COLOR = (1.0, 1.0, 0.2)    # waypoints (yellow-ish)
@@ -40,7 +44,7 @@ timestep = int(robot.getBasicTimeStep())
 
 controller_dir = os.path.dirname(__file__)
 npz_path = os.path.join(controller_dir, "../../../sim2real_results/log1_ground_with_maxvel0_3/raw_metrics.npz")     # <-- update if needed
-yaml_path = os.path.join(controller_dir, "../../../experiments/path1.yaml")     # <-- update if needed
+yaml_path = os.path.join(controller_dir, "../../../experiments/recorded_waypoints.yaml")     # <-- update if needed
 
 # ---- Load your raw_metrics.npz ----
 npz = np.load(npz_path, allow_pickle=True)

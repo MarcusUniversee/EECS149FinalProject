@@ -6,9 +6,57 @@ import numpy as np
 from plot import calc_gap
 import csv
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
 INPUT_ROOT = "sim2real_results"
 OUTPUT = "sim2real_results/gap_table.csv"
+import re
+
+def format_name(s: str) -> str:
+    pattern = r"^(.*?)(?:_with)?_max0_(\d+(?:_\d+)?)_min0_(\d+(?:_\d+)?)$"
+    m = re.match(pattern, s)
+    if not m:
+        print("format does not match")
+        return s  # fallback if format doesn't match
+
+    name, maxv, minv = m.groups()
+
+    # Replace underscores with spaces in name
+    name = name.replace("_", " ")
+
+    # Convert underscore decimals: 3_5 -> 0.35
+    maxf = "0." + maxv.replace("_", "")
+    minf = "0." + minv.replace("_", "")
+
+    return f"{name} [{minf}, {maxf}]"
+
+def plot_gaps(rows: List[Dict[str, object]], save_path: str = "sim2real_results/gap_table.png") -> None:
+    names = [format_name(r["name"]) for r in rows]
+
+    # Convert blanks -> NaN so matplotlib skips those bars cleanly
+    def to_float(x):
+        return float(x) if x != "" else np.nan
+
+    t1 = np.array([to_float(r["trial1"]) for r in rows], dtype=float)
+    t2 = np.array([to_float(r["trial2"]) for r in rows], dtype=float)
+    t3 = np.array([to_float(r["trial3"]) for r in rows], dtype=float)
+
+    x = np.arange(len(names))
+    w = 0.28
+
+    plt.figure(figsize=(max(10, 0.45 * len(names)), 6))
+    plt.bar(x - w, t1, width=w, label="trial1")
+    plt.bar(x,      t2, width=w, label="trial2")
+    plt.bar(x + w,  t3, width=w, label="trial3")
+
+    plt.xticks(x, names, rotation=90)
+    plt.ylabel("sim2real_gap")
+    plt.title("Sim2Real Gap by Trial")
+    plt.legend()
+    plt.ylim(0.0, 0.15)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.show()
 
 def main() -> None:
     gaps_by_name: Dict[str, Dict[int, float]] = defaultdict(dict)
@@ -60,6 +108,7 @@ def main() -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    plot_gaps(rows)
 
 if __name__ == "__main__":
     main()
